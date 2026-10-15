@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Capacity Planner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#f4f5f8;--panel:#fff;--ink:#1b2033;--mute:#6b7389;--line:#e3e6ee;--line2:#cfd4e0;--accent:#3d4fd8;--over:#fbdede;--today:#eef0ff;--hatch:#e9ebf1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141c;--panel:#1a1d28;--ink:#e8eaf3;--mute:#8d94ab;--line:#2a2e3d;--line2:#3a3f52;--accent:#7f8dff;--over:#4a2227;--today:#222644;--hatch:#262a38}}
+:root[data-theme="dark"]{--bg:#12141c;--panel:#1a1d28;--ink:#e8eaf3;--mute:#8d94ab;--line:#2a2e3d;--line2:#3a3f52;--accent:#7f8dff;--over:#4a2227;--today:#222644;--hatch:#262a38}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*{box-sizing:border-box}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.35 Figtree,system-ui,-apple-system,Segoe UI,sans-serif;display:flex;flex-direction:column}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--panel);z-index:50}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.01em}
+button{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line2);border-radius:6px;padding:5px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input,select{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line2);border-radius:6px;padding:5px 8px;min-width:0}
+.sp{flex:1}.hint{color:var(--mute);font-size:12px}
+main{flex:1;display:flex;min-height:0}
+aside{width:210px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:12px;overflow:auto}
+aside h2{font-size:12px;font-weight:600;color:var(--mute);margin:14px 0 6px}aside h2:first-child{margin-top:0}
+.chip{display:flex;align-items:center;gap:8px;padding:7px 9px;margin-bottom:5px;border:1px solid var(--line);border-radius:6px;cursor:grab;touch-action:none;user-select:none;background:var(--bg)}
+.chip i{width:10px;height:10px;border-radius:3px;flex:none}
+.chip.leave i{background:repeating-linear-gradient(45deg,#9aa1b5 0 2px,transparent 2px 4px)}
+.add{display:flex;gap:4px;margin-top:6px}.add input{flex:1}
+#scroller{flex:1;overflow:auto;position:relative;background:var(--panel)}
+#content{position:relative}
+.hrow{display:flex;position:sticky;top:0;z-index:20;background:var(--panel)}
+.corner{position:sticky;left:0;z-index:30;width:200px;flex:none;background:var(--panel);border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);display:flex;align-items:flex-end;padding:8px 12px;color:var(--mute);font-size:12px}
+.hdr{flex:none;border-bottom:1px solid var(--line2)}
+.wk{display:flex;height:24px;border-bottom:1px solid var(--line)}
+.wk div{flex:none;padding:4px 6px;font-weight:600;font-size:12px;border-left:1px solid var(--line2);white-space:nowrap;overflow:hidden}
+.dy{display:flex;height:34px}
+.dy div{flex:none;text-align:center;font-size:11px;color:var(--mute);padding-top:3px;line-height:1.2}
+.dy div b{display:block;font-size:12px;color:var(--ink);font-weight:500}
+.dy .td{background:var(--today);color:var(--accent)}.dy .td b{color:var(--accent);font-weight:700}
+.row{display:flex;border-bottom:1px solid var(--line)}
+.who{position:sticky;left:0;z-index:10;width:200px;flex:none;background:var(--panel);border-right:1px solid var(--line2);padding:8px 12px}
+.who b{display:block;font-weight:600}.who span{color:var(--mute);font-size:12px}
+.bar{height:5px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}.bar u{display:block;height:100%;background:var(--accent)}.bar u.o{background:#d9475a}
+.track{position:relative;flex:none;background-image:linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:var(--dw) 100%}
+.col-td{position:absolute;top:0;bottom:0;background:var(--today)}
+.ov{position:absolute;top:0;bottom:0;background:var(--over)}
+.wkl{position:absolute;top:0;bottom:0;width:1px;background:var(--line2)}
+.al{position:absolute;border-radius:6px;color:#fff;padding:4px 8px;font-size:12px;font-weight:500;overflow:hidden;cursor:grab;touch-action:none;user-select:none;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 0 rgba(0,0,0,.12)}
+.al small{opacity:.85;font-size:11px}.al .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.al.leave{background:repeating-linear-gradient(45deg,var(--hatch) 0 5px,var(--panel) 5px 10px)!important;color:var(--mute);border:1px solid var(--line2)}
+.al .rz{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize}
+.ghost{position:absolute;border-radius:6px;border:2px dashed var(--accent);background:rgba(61,79,216,.12);pointer-events:none;z-index:15}
+.pop{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:12px;width:230px;box-shadow:0 8px 28px rgba(0,0,0,.2)}
+.pop label{display:block;font-size:12px;color:var(--mute);margin:8px 0 3px}.pop .r{display:flex;gap:6px;margin-top:12px}
+.pop input,.pop select{width:100%}
+.danger{color:#c4303f}
+.empty{padding:40px;color:var(--mute)}
+.al{background:var(--c);border:2px solid color-mix(in srgb,var(--c) 65%,#000)}
+.al.tent{background:color-mix(in srgb,var(--c) 30%,var(--panel));border:2px dotted var(--c);color:var(--ink)}
+.cg{margin-bottom:12px}.ch{display:flex;align-items:center;gap:6px;margin-bottom:5px}.ch i{width:10px;height:10px;border-radius:50%;flex:none}.ch b{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ch button{padding:1px 7px;font-size:12px}
+.chip .cn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button.ed{padding:0 6px;border:none;background:none;color:var(--mute)}
+.who{cursor:pointer;overflow:hidden}.who:hover{background:var(--bg)}
+.rh{position:absolute;left:0;right:0;bottom:0;height:8px;cursor:row-resize;touch-action:none}.rh:hover{background:var(--accent);opacity:.55}
+.off{position:absolute;top:0;bottom:0;pointer-events:none;background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--ink) 11%,transparent) 0 3px,color-mix(in srgb,var(--ink) 4%,transparent) 3px 7px)}
+.off.hol{background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--ink) 20%,transparent) 0 3px,color-mix(in srgb,var(--ink) 7%,transparent) 3px 7px)}
+.dy [data-hd]{cursor:pointer}.dy [data-hd]:hover{background:var(--bg)}
+.dy .we{background:var(--hatch)}.dy .ph{background:var(--over);color:#c4303f}.dy .ph b{color:#c4303f}
+.al.sh{flex-direction:row;align-items:center;gap:8px;padding-top:0;padding-bottom:0}
+.rv{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize;touch-action:none}.rv:hover{background:rgba(255,255,255,.4)}
+[hidden]{display:none!important}.nopane aside{display:none}
+body[data-role=contributor] .add,body[data-role=contributor] [data-eclient],body[data-role=contributor] [data-eproj]{display:none!important}
+body:not([data-role=admin]) .adm,body:not([data-role=admin]) [data-rm]{display:none!important}
+body:not([data-role=admin]) .dy [data-hd]{cursor:default}
+.pop.lim #st,.pop.lim [for=ph],.pop.lim #ph,.pop.lim [for=pp],.pop.lim #pp,.pop.lim #pd,.pop.lim #pa,.pop.lim [for=pa]{display:none}
+.tags em.ct{background:#fff3bf;border-color:#f0c93b;color:#7a5b00}.tags em.st{background:#e7f5ff;border-color:#74c0fc;color:#1864ab}
+.dpane{position:fixed;right:16px;top:70px;width:330px;max-height:calc(100% - 100px);overflow:auto;z-index:45;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.22);padding:14px}
+.dpane .dh{display:flex;justify-content:space-between;align-items:flex-start;cursor:move}.dpane label{display:block;font-size:12px;color:var(--mute);margin:10px 0 3px}
+.dpane input,.dpane select,.dpane textarea{width:100%}.dpane textarea{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line2);border-radius:6px;padding:5px 8px;resize:vertical}
+.dpane .two{display:flex;gap:8px}.dpane .tm{display:flex;gap:6px;align-items:center;margin:4px 0}.dpane .tm span:first-child{flex:1}.dpane .tm input{width:64px}
+.lr{display:flex;gap:12px;padding:8px 0;border-top:1px solid var(--line)}.lr>div:first-child{width:110px;flex:none}
+.ur{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line)}.ur>div{flex:1;min-width:160px}.dlg label.ck{display:flex;gap:6px;align-items:center;margin:0;font-size:12px}.dlg label.ck input{width:auto}
+.tg{border:none;background:none;padding:0;width:18px;color:var(--mute);flex:none}
+header{flex-wrap:wrap}header select{max-width:160px}
+.tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;max-height:34px;overflow:hidden}
+.tags em{font-style:normal;font-size:10.5px;padding:1px 7px;border-radius:9px;background:var(--bg);border:1px solid var(--line2);color:var(--mute)}
+.tags.big{max-height:none;margin:0 0 6px}.tags.big em{font-size:12px}.tags a{cursor:pointer;margin-left:3px}
+.ov-modal{position:fixed;inset:0;z-index:70;background:rgba(10,12,24,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.dlg{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:18px;width:360px;max-width:100%;max-height:100%;overflow:auto}
+.dlg h3{margin:0 0 4px;font-size:16px}.dlg label{display:block;font-size:12px;color:var(--mute);margin:10px 0 3px}.dlg input,.dlg select{width:100%}.dlg .r{display:flex;gap:6px;margin-top:16px}
+.pop textarea{width:100%;font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line2);border-radius:6px;padding:5px 8px;resize:vertical}
+button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
+.sw{display:flex;gap:6px;flex-wrap:wrap}.sw button{width:26px;height:26px;border-radius:50%;padding:0;border:2px solid transparent}.sw button.on{border-color:var(--ink)}
+.seg{display:flex}.seg button{flex:1;border-radius:0}.seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0}.seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+@media (max-width:700px){aside{width:150px}.who,.corner{width:140px}}
+@media (prefers-reduced-motion:no-preference){.al{transition:box-shadow .15s}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Capacity planner</h1>
+  <button id="pane">Hide projects</button><button id="today">Today</button>
+  <span class="hint">Drag projects onto a row. Drag bars to move; pull the edges to resize.</span>
+  <span class="sp"></span>
+  <select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><input id="flt" placeholder="Filter team by name, title or skill" aria-label="Filter team" style="width:250px"><button id="act" hidden>Activity</button><button id="lo" hidden onclick="doLogout()">Sign out</button><button id="usr" hidden>Users</button><span id="status" class="hint">Connecting…</span>
+</header>
+<main>
+  <aside>
+    <h2 style="display:flex;justify-content:space-between;align-items:center">Clients and projects<span><button class="ed" id="exa" title="Expand all" aria-label="Expand all">▾</button><button class="ed" id="cla" title="Collapse all" aria-label="Collapse all">▸</button></span></h2>
+    <div id="projs"></div>
+    <div class="add"><input id="nc" placeholder="New client" aria-label="New client name"><button id="addc">Add</button></div>
+    <h2>Team (click a name in the chart to edit)</h2>
+    <div id="ppl"></div>
+    <div class="add"><input id="nm" placeholder="New person" aria-label="New person name"><button id="addm">Add</button></div>
+  </aside>
+  <div id="scroller"><div id="content"></div></div>
+</main>
+<script>
+const DW=40,BH=34,GAP=4,PAD=6;
+const COLORS=['#e8590c','#2f9e44','#1c3a8a','#c2255c','#0c8599','#7048e8','#b08900','#5c6370'];
+const KEY='capacity-planner-v1';
+const PALETTE=['#c92a2a','#d9480f','#e8590c','#f08c00','#b08900','#74b816','#2f9e44','#099268','#0ca678','#0c8599','#1098ad','#1971c2','#3b5bdb','#1c3a8a','#5f3dc4','#7048e8','#9c36b5','#c2255c','#e64980','#a61e4d','#8d6e63','#5c6370','#868e96','#343a40'];
+const pad=n=>String(n).padStart(2,'0');
+const fmt=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mondayOf=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
+const uid=()=>Math.random().toString(36).slice(2,9);
+const todayISO=fmt(new Date());
+const wkStart=n=>fmt(new Date(mondayOf(new Date()).getTime()+n*7*864e5+(n*7*864e5?0:0)));
+function addDays(iso,n){const d=parse(iso);d.setDate(d.getDate()+n);return fmt(d)}
+
+function seed(){
+  const P=[{id:'p1',name:'Spur Corporation',color:COLORS[1]},{id:'p2',name:'Air Products',color:COLORS[3]},{id:'p3',name:'South African Response',color:COLORS[0]},{id:'p4',name:'Internal',color:COLORS[7]},{id:'lv',name:'Leave',leave:true,color:'#9aa1b5'}];
+  const T=[{id:'t1',name:'Adrian Masters',role:'Solution Architect',cap:8},{id:'t2',name:'Ivana Naidoo',role:'Delivery Manager',cap:8},{id:'t3',name:'Jakes Gous',role:'Delivery Manager',cap:8},{id:'t4',name:'Jordan Masters',role:'Developer, Jnr',cap:8}];
+  const w=n=>addDays(fmt(mondayOf(new Date())),n*7);
+  const A=[
+   ['t1','p1',w(0),addDays(w(1),4),4],['t1','p4',w(1),addDays(w(2),4),4],['t1','p2',w(3),addDays(w(4),4),6],
+   ['t2','p3',w(0),addDays(w(0),4),8],['t2','p1',w(1),addDays(w(2),4),5],['t2','lv',w(4),addDays(w(4),4),8],
+   ['t3','p2',w(0),addDays(w(2),4),6],['t3','p4',w(1),addDays(w(1),4),4],['t3','p1',w(3),addDays(w(5),4),8],
+   ['t4','p4',w(1),addDays(w(4),4),7]
+  ].map(a=>({id:uid(),person:a[0],proj:a[1],start:a[2],end:a[3],hrs:a[4]}));
+  return {projects:P,people:T,allocs:A};
+}
+let state={clients:[],holidays:[],users:[],projects:[],people:[],allocs:[]};
+let filterQ='';
+let rowH={};try{rowH=JSON.parse(localStorage.getItem('planner-rowh')||'{}')}catch(e){}
+const saveRowH=()=>{try{localStorage.setItem('planner-rowh',JSON.stringify(rowH))}catch(e){}};
+const ls={get(k,d){try{const v=localStorage.getItem('planner-'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('planner-'+k,JSON.stringify(v))}catch(e){}}};
+let sortBy=ls.get('sort','custom'),collapsed=ls.get('collapsed',{}),paneHidden=ls.get('pane',false),skillSel=new Set();
+let myRole=null,myId=null,me=null,isOwnerFlag=false,usersReady=false,bootWrote=false,usersDraw=null;
+const BOOT=[];
+const rank={contributor:1,manager:2,admin:3};
+let pf='';
+const STG={active:'Active',hired:'Hired, starting soon',offer:'Offer made',interview:'Interviewing',screening:'Screening',sourcing:'Sourcing'};
+const atLeast=r=>(rank[myRole]||0)>=rank[r];
+const matches=p=>(!filterQ||(p.name+' '+(p.role||'')+' '+(p.emp||'')+' '+(p.stage&&p.stage!=='active'?STG[p.stage]:'')+' '+(p.skills||[]).join(' ')).toLowerCase().includes(filterQ))&&(!skillSel.size||(p.skills||[]).some(s=>skillSel.has(s)));
+const sortedPeople=()=>{const l=state.people.filter(matches).filter(p=>!pf||state.allocs.some(a=>a.person===p.id&&visAlloc(a)));if(sortBy==='name')l.sort((a,b)=>a.name.localeCompare(b.name));else if(sortBy==='name-desc')l.sort((a,b)=>b.name.localeCompare(a.name));else if(sortBy==='title')l.sort((a,b)=>(a.role||'~').localeCompare(b.role||'~')||a.name.localeCompare(b.name));return l};
+let db=null,readOnly=false,synced=false,dirty=false;
+function loadLocal(){try{const s=localStorage.getItem(KEY);return s?JSON.parse(s):null}catch(e){return null}}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+function setStatus(t){const s=document.getElementById('status');if(s)s.textContent=t}
+function fail(e){setStatus('Save failed: '+((e&&(e.message||e.code))||'unknown error'))}
+function put(kind,obj){if(!db){saveLocal();return}const r={...obj};delete r.id;db.collection(kind).doc(obj.id).set(r).catch(fail);logChange(kind,obj.id,r)}
+function del(kind,id){if(!db){saveLocal();return}db.collection(kind).doc(id).delete().catch(fail);logChange(kind,id,null)}
+function sortAll(){state.clients.sort((a,b)=>(a.n||0)-(b.n||0));state.projects.sort((a,b)=>(a.leave?1:0)-(b.leave?1:0)||(a.n||0)-(b.n||0));state.people.sort((a,b)=>(a.n||0)-(b.n||0)||a.name.localeCompare(b.name))}
+function refresh(){if(drag){dirty=true;return}render()}
+async function connect(){
+  try{
+    const c=window.claude&&claude.use?await claude.use('db'):null;
+    const u=window.claude&&claude.use?await claude.use('user'):null;
+    try{if(u&&(await u.can('data.write'))===false)readOnly=true}catch(e){}
+    if(!c){state=Object.assign({clients:[],holidays:[]},loadLocal()||seed());setStatus('Local only (this browser)');myRole='admin';document.body.dataset.role='admin';render();goToday();return}
+    db=c;
+    try{if(u){myId=await u.id();me=await u.me();isOwnerFlag=await u.isOwner()}}catch(e){}
+    db.collection('users').onSnapshot(s=>{s.docs.forEach(d=>shadow['users/'+d.id]=JSON.stringify(d.data()));state.users=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.n||0)-(b.n||0));usersReady=true;evalAccess();renderGate();if(usersDraw)usersDraw()},fail);
+    setStatus('Shared · live');
+    ['clients','holidays','projects','people','allocs'].forEach(k=>db.collection(k).onSnapshot(s=>{state[k]=s.docs.map(d=>({id:d.id,...d.data()}));s.docs.forEach(d=>shadow[k+'/'+d.id]=JSON.stringify(d.data()));synced=true;refresh()},fail));
+  }catch(e){state=Object.assign({clients:[],holidays:[]},loadLocal()||seed());setStatus('Local only (this browser)');myRole='admin';document.body.dataset.role='admin';render()}
+}
+let range={start:addDays(fmt(mondayOf(new Date())),-28),weeks:30};
+let cols=[];
+
+function buildCols(){cols=[];let d=parse(range.start);for(let w=0;w<range.weeks;w++){for(let i=0;i<7;i++){cols.push(fmt(d));d.setDate(d.getDate()+1)}}}
+function lowerBound(iso){let lo=0,hi=cols.length;while(lo<hi){const m=(lo+hi)>>1;if(cols[m]<iso)lo=m+1;else hi=m}return lo}
+function span(a){const s=lowerBound(a.start);let e=lowerBound(a.end);if(e>=cols.length||cols[e]>a.end)e--;return(s>e||s>=cols.length||e<0)?null:[s,e]}
+const proj=id=>state.projects.find(p=>p.id===id);
+const client=id=>state.clients.find(c=>c.id===id);
+const colorOf=p=>p.leave?'#9aa1b5':(client(p.clientId)?.color||p.color||'#5c6370');
+const labelOf=p=>{const c=client(p.clientId);return c?c.name+' / '+p.name:p.name};
+const isLinked=p=>!!p&&!p.leave&&!!client(p.clientId);
+const eff=a=>{const pr=proj(a.proj);return isLinked(pr)&&pr.start&&pr.end?{...a,start:pr.start,end:pr.end}:a};
+const visAlloc=a=>{if(!pf)return true;const pr=proj(a.proj);if(!pr)return false;return pf[0]==='c'?pr.clientId===pf.slice(2):a.proj===pf.slice(2)};
+let offA=[],holMap={};
+const nextWork=(i,dir)=>{i=Math.max(0,Math.min(i,cols.length-1));while(i>=0&&i<cols.length&&offA[i])i+=dir;return i<0||i>=cols.length?-1:i};
+const addWork=(a,n)=>{let i=a,k=1;while(k<n){const j=nextWork(i+1,1);if(j<0)break;i=j;k++}return i};
+const wcount=(a,b)=>{let k=0;for(let i=a;i<=b;i++)if(!offA[i])k++;return Math.max(1,k)};
+const segs=(a,b)=>{const r=[];let s=-1;for(let i=a;i<=b+1;i++){const w=i<=b&&!offA[i];if(w&&s<0)s=i;if(!w&&s>=0){r.push([s,i-1]);s=-1}}return r};
+
+function render(){
+  sortAll();buildCols();holMap={};state.holidays.forEach(h=>holMap[h.id]=h.name||'Public holiday');offA=cols.map(c=>{const g=parse(c).getDay();return g===0||g===6?1:(holMap[c]?2:0)});
+  const W=cols.length*DW, el=document.getElementById('content');
+  el.style.width=(200+W)+'px';
+  // header
+  let wk='',dy='';
+  for(let w=0;w<range.weeks;w++){
+    const d=parse(cols[w*7]);
+    const lbl=d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    wk+=`<div style="width:${7*DW}px">${d.getDate()<=7||w===0?'<b>'+d.toLocaleDateString('en-GB',{month:'long',year:'numeric'})+'</b> · ':''}${lbl}</div>`;
+  }
+  cols.forEach((c,i)=>{const d=parse(c);const k=offA[i];dy+=`<div style="width:${DW}px" class="${c===todayISO?'td':''} ${k===1?'we':k===2?'ph':''}" ${k===1?'':`data-hd="${c}" title="${esc(k===2?holMap[c]+' (click to edit)':'Click to mark as a public holiday')}"`}>${'MTWTFSS'[(d.getDay()+6)%7]}<b>${d.getDate()}</b></div>`});
+  let html=`<div class="hrow"><div class="corner">${state.people.filter(matches).length} of ${state.people.length} people</div><div class="hdr" style="width:${W}px"><div class="wk">${wk}</div><div class="dy">${dy}</div></div></div>`;
+  const tIdx=cols.indexOf(todayISO);
+  const thisWk=cols.map((c,i)=>[c,i]).filter(([c])=>c>=fmt(mondayOf(new Date()))&&c<=addDays(fmt(mondayOf(new Date())),6)).map(x=>x[1]).filter(i=>!offA[i]);
+  sortedPeople().forEach(p=>{
+    const mine=state.allocs.filter(a=>a.person===p.id).filter(visAlloc).map(a=>({a,s:span(eff(a))})).filter(x=>x.s).sort((x,y)=>x.s[0]-y.s[0]);
+    const stk=new Array(cols.length).fill(0),day={},dayAll={};
+    mine.forEach(x=>{let y=0;for(let i=x.s[0];i<=x.s[1];i++)y=Math.max(y,stk[i]);x.y=y;for(let i=x.s[0];i<=x.s[1];i++){stk[i]=y+x.a.hrs;if(!offA[i]){dayAll[i]=(dayAll[i]||0)+x.a.hrs;if(!proj(x.a.proj)?.leave)day[i]=(day[i]||0)+x.a.hrs}}
+      });
+    const peak=Math.max(p.cap||8,...stk),PPH=22;
+    const h=rowH[p.id]?Math.max(44,rowH[p.id]):PAD*2+peak*PPH;
+    const pph=(h-PAD*2)/peak;
+    let util=0;thisWk.forEach(i=>util+=day[i]||0);const pct=Math.round(util/(p.cap*Math.max(1,thisWk.length))*100);
+    let tr='';
+    if(tIdx>=0)tr+=`<div class="col-td" style="left:${tIdx*DW}px;width:${DW}px"></div>`;
+    for(const i in dayAll)if(dayAll[i]>p.cap)tr+=`<div class="ov" style="left:${i*DW}px;width:${DW}px"></div>`;
+    for(let w=0;w<range.weeks;w++)tr+=`<div class="wkl" style="left:${w*7*DW}px"></div>`;
+    cols.forEach((c,i)=>{if(offA[i])tr+=`<div class="off${offA[i]===2?' hol':''}" style="left:${i*DW}px;width:${DW}px"></div>`});
+    mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};segs(x.s[0],x.s[1]).forEach(([si,sj],k,arr)=>{
+      tr+=`<div class="al ${pr.leave?'leave':(x.a.status==='tentative'?'tent':'')}${x.a.hrs*pph<36?' sh':''}" data-id="${x.a.id}" title="${esc(labelOf(pr)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${si*DW+1}px;width:${(sj-si+1)*DW-2}px;top:${PAD+x.y*pph}px;height:${Math.max(12,x.a.hrs*pph-2)}px;--c:${colorOf(pr)}"><span class="nm"${x.a.hrs*pph>=52?' style="white-space:normal"':''}>${x.a.hrs*pph>=52?barTall(pr):esc(labelOf(pr))}</span><small>${x.a.hrs}h/day${!pr.leave&&x.a.status==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
+    html+=`<div class="row" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><b>${esc(p.name)}</b><span>${esc(p.role||'')} · ${pct}% this week</span><div class="tags">${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
+  });
+  if(!state.people.length)html+='<div class="empty">'+(db&&!synced?'Loading the shared plan…':'Add a team member in the sidebar to start planning.')+'</div>';
+  el.innerHTML=html;
+  fillPf();{const dpn=document.getElementById('dpane');if(dpn&&!dpn.contains(document.activeElement))drawDetails()}
+  // sidebar
+  {const chip=p=>`<div class="chip ${p.leave?'leave':''}" data-proj="${p.id}"><i style="background:${p.leave?'':colorOf(p)}"></i><span class="cn">${esc(p.name)}</span><button class="ed" data-eproj="${p.id}" aria-label="Edit ${esc(p.name)}">✎</button></div>`;
+  const other=state.projects.filter(p=>!client(p.clientId));
+  document.getElementById('projs').innerHTML=state.clients.map(c=>`<div class="cg"><div class="ch"><button class="tg" data-tg="${c.id}" aria-expanded="${!collapsed[c.id]}" aria-label="${collapsed[c.id]?'Expand':'Collapse'} ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><b>${esc(c.name)}</b><span class="hint">${state.projects.filter(p=>p.clientId===c.id).length}</span><button data-eclient="${c.id}">Edit</button></div>${collapsed[c.id]?'':state.projects.filter(p=>p.clientId===c.id).map(chip).join('')}<div class="add" ${collapsed[c.id]?'hidden':''}><input data-np="${c.id}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${c.id}">Add</button></div></div>`).join('')+`<div class="cg"><div class="ch"><button class="tg" data-tg="_" aria-expanded="${!collapsed._}" aria-label="${collapsed._?'Expand':'Collapse'} time off and other">${collapsed._?'▸':'▾'}</button><b>Time off and other</b><span class="hint">${other.length}</span></div>${collapsed._?'':other.map(chip).join('')}<div class="add adm" ${collapsed._?'hidden':''}><input data-np="_" placeholder="New item (sick, training...)" aria-label="New time off or other item"><button data-addp="_">Add</button></div></div>`;}
+  document.getElementById('ppl').innerHTML=state.people.map(p=>`<div class="hint" style="display:flex;justify-content:space-between;padding:2px 0">${esc(p.name)}<button data-rm="${p.id}" class="danger" style="padding:0 6px" aria-label="Remove ${esc(p.name)}">×</button></div>`).join('');
+}
+
+/* ---------- drag and drop ---------- */
+const sc=document.getElementById('scroller');
+let drag=null,ghost=null;
+function firstTrack(){return document.querySelector('.track')}
+function target(e){
+  const t=firstTrack();if(!t)return null;
+  const r=t.getBoundingClientRect();
+  const col=Math.floor((e.clientX-r.left)/DW);
+  const tr=document.elementsFromPoint(e.clientX,e.clientY).map(n=>n.closest&&n.closest('.track')).find(Boolean);
+  return{col,track:tr};
+}
+document.addEventListener('pointerdown',e=>{
+  if(e.button>0||readOnly||!myRole||e.target.closest('button,input,select,textarea'))return;
+  const chip=e.target.closest('.chip'),bar=e.target.closest('.al');
+  if(chip){drag={ro:!atLeast('manager'),type:'new',proj:chip.dataset.proj,len:5,x:e.clientX,y:e.clientY,moved:false};}
+  else if(bar){
+    const a=state.allocs.find(x=>x.id===bar.dataset.id),s=span(eff(a));if(!s)return;
+    const t=target(e);
+    drag={type:e.target.classList.contains('rz')?'resize':e.target.classList.contains('rv')?'hrs':'move',hrs0:a.hrs,pph:parseFloat(bar.closest('.track').dataset.pph)||22,id:a.id,s,n:wcount(s[0],s[1]),off:t.col-s[0],x:e.clientX,y:e.clientY,moved:false,bar};
+  }else return;
+  e.preventDefault();
+});
+document.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  if(!drag.moved&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>4)drag.moved=true;
+  if(!drag.moved)return;
+  if(drag.ro)return;
+  if(drag.type==='hrs'){const nh=Math.max(.5,Math.min(16,Math.round((drag.hrs0+(e.clientY-drag.y)/drag.pph)*2)/2));drag.hrs=nh;document.querySelectorAll('.al[data-id="'+drag.id+'"]').forEach(b=>{b.style.height=Math.max(12,nh*drag.pph-2)+'px';const sm=b.querySelector('small');if(sm)sm.textContent=sm.textContent.replace(/[\d.]+h\/day/,nh+'h/day')});return}
+  const r=sc.getBoundingClientRect();
+  if(e.clientX>r.right-50)sc.scrollLeft+=14;else if(e.clientX<r.left+250)sc.scrollLeft-=14;
+  if(ghost){ghost.remove();ghost=null}
+  drag.a=null;const t=target(e);if(!t||!t.track)return;
+  let a,b;
+  if(drag.type==='new'){const pr=proj(drag.proj),ps=pr&&isLinked(pr)&&pr.start?span(pr):null;if(ps){a=ps[0];b=ps[1]}else{a=nextWork(t.col,1);b=a<0?-1:addWork(a,drag.len)}}
+  else if(drag.type==='move'){a=nextWork(Math.max(0,t.col-drag.off),1);b=a<0?-1:addWork(a,drag.n)}
+  else{a=drag.s[0];const c=nextWork(t.col,-1);b=Math.max(a,c);t.track=drag.bar.closest('.track')}
+  if(a<0||b<a)return;b=Math.min(b,cols.length-1);
+  ghost=document.createElement('div');ghost.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:15';
+  segs(a,b).forEach(([i,j])=>{const g=document.createElement('div');g.className='ghost';g.style.cssText=`left:${i*DW+1}px;width:${(j-i+1)*DW-2}px;top:${PAD}px;height:${parseInt(t.track.dataset.bh)||BH}px`;ghost.appendChild(g)});
+  t.track.appendChild(ghost);drag.a=a;drag.b=b;drag.track=t.track;
+});
+document.addEventListener('pointerup',e=>{
+  if(!drag)return;
+  const d=drag;drag=null;if(ghost){ghost.remove();ghost=null}
+  if(dirty){dirty=false;setTimeout(render,0)}
+  if(d.type==='hrs'){if(d.moved&&d.hrs!=null){const al=state.allocs.find(x=>x.id===d.id);if(al&&al.hrs!==d.hrs){al.hrs=d.hrs;put('allocs',al)}}render();return}
+  if(!d.moved){if(d.bar)openPop(d.id,e);else if(d.proj)openDetails(d.proj);return}
+  if(d.a==null||!d.track)return;
+  if(d.type==='new'){const pr=proj(d.proj),pid=d.track.dataset.p;if(isLinked(pr)){if(!pr.start){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr)}addAssignment(pid,d.proj)}else{const n={id:uid(),person:pid,proj:d.proj,start:cols[d.a],end:cols[d.b],hrs:pr&&pr.leave?8:4};state.allocs.push(n);put('allocs',n)}}
+  else{const al=state.allocs.find(x=>x.id===d.id);if(!al)return;const pr=proj(al.proj),pid=d.track.dataset.p;if(isLinked(pr)){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr);if(d.type==='move'&&pid!==al.person&&!state.allocs.some(b=>b.person===pid&&b.proj===al.proj)){al.person=pid;put('allocs',al)}}else{al.start=cols[d.a];al.end=cols[d.b];if(d.type==='move')al.person=pid;put('allocs',al)}}
+  render();
+});
+
+/* ---------- editor popover ---------- */
+function closePop(){document.querySelector('.pop')?.remove()}
+function openPop(id,e){
+  closePop();
+  const a=state.allocs.find(x=>x.id===id);if(!a)return;
+  const p=document.createElement('div');p.className='pop';
+  const tent=a.status==='tentative';const prj=proj(a.proj);const freeP=isLinked(prj)?state.people.filter(q=>!state.allocs.some(b=>b.person===q.id&&b.proj===a.proj)):[];const assignHtml=freeP.length?`<label for="pa">Assign another resource to ${esc(prj.name)}</label><select id="pa"><option value="">Choose a person</option>${freeP.map(q=>`<option value="${q.id}">${esc(q.name)}</option>`).join('')}</select>`:'';
+  const opt=x=>`<option value="${x.id}" ${x.id===a.proj?'selected':''}>${esc(x.name)}</option>`;
+  const optg=state.clients.map(c=>`<optgroup label="${esc(c.name)}">${state.projects.filter(x=>x.clientId===c.id).map(opt).join('')}</optgroup>`).join('')+state.projects.filter(x=>!client(x.clientId)).map(opt).join('');
+  p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
+  document.body.appendChild(p);
+  p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-250))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-370))+'px';
+  if(!atLeast('manager'))p.classList.add('lim');
+  const pa=p.querySelector('#pa');if(pa)pa.onchange=()=>{if(!pa.value)return;addAssignment(pa.value,a.proj);closePop();render()};
+  p.querySelector('#st').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;p.querySelectorAll('#st button').forEach(x=>x.classList.toggle('on',x===b))};
+  p.querySelector('#ph').focus();
+  p.querySelector('#pc').onclick=()=>{const c=state.allocs.find(x=>x.id===id);if(c){c.hrs=Math.max(.5,parseFloat(p.querySelector('#ph').value)||c.hrs);c.proj=p.querySelector('#pp').value;c.status=p.querySelector('#st .on').dataset.v;c.comment=p.querySelector('#pk').value.trim();put('allocs',c)}closePop();render()};
+  p.querySelector('#pd').onclick=()=>{state.allocs=state.allocs.filter(x=>x.id!==id);del('allocs',id);closePop();render()};
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePop();closeModal()}if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA'&&document.querySelector('.pop'))document.querySelector('#pc')?.click();if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.np)document.querySelector('[data-addp="'+e.target.dataset.np+'"]').click()});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('.pop')&&!e.target.closest('.al'))closePop()},true);
+
+/* ---------- sidebar + chrome ---------- */
+document.getElementById('addc').onclick=()=>{if(readOnly)return;const i=document.getElementById('nc'),n=i.value.trim();if(!n)return;const c={id:uid(),name:n,color:PALETTE[(state.clients.length*5)%PALETTE.length],n:Date.now()};state.clients.push(c);put('clients',c);i.value='';render();openClient(c.id)};
+document.getElementById('addm').onclick=()=>{if(readOnly)return;const i=document.getElementById('nm'),n=i.value.trim();if(!n)return;const p={id:uid(),name:n,role:'',cap:8,n:Date.now()};state.people.push(p);put('people',p);i.value='';render();openPerson(p.id)};
+[['nc','addc'],['nm','addm']].forEach(([i,b])=>document.getElementById(i).addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById(b).click()}));
+document.addEventListener('click',e=>{const r=e.target.closest('[data-rm]');if(!r||!atLeast('admin'))return;
+  if(r.dataset.arm!=='1'){r.dataset.arm='1';r.textContent='Remove?';r.style.width='auto';setTimeout(()=>{if(r.isConnected)render()},3000);return}
+  const id=r.dataset.rm;state.allocs.filter(a=>a.person===id).forEach(a=>del('allocs',a.id));state.allocs=state.allocs.filter(a=>a.person!==id);state.people=state.people.filter(p=>p.id!==id);del('people',id);render()});
+function goToday(){const i=cols.indexOf(todayISO);sc.scrollLeft=Math.max(0,(i>=0?i:0)*DW-40)}
+document.getElementById('today').onclick=goToday;
+let busy=false;
+sc.addEventListener('scroll',()=>{
+  if(busy||drag)return;
+  if(sc.scrollLeft+sc.clientWidth>sc.scrollWidth-300){busy=true;range.weeks+=12;render();busy=false}
+  else if(sc.scrollLeft<250){busy=true;range.start=addDays(range.start,-56);range.weeks+=8;const l=sc.scrollLeft;render();sc.scrollLeft=l+8*7*DW;busy=false}
+});
+/* ---------- modals: team, clients, projects ---------- */
+function closeModal(){document.querySelector('.ov-modal')?.remove()}
+function modal(title,body,onSave,onDelete,delLabel,init){
+  closeModal();closePop();
+  const o=document.createElement('div');o.className='ov-modal';
+  o.innerHTML=`<div class="dlg" role="dialog" aria-label="${esc(title)}"><h3>${esc(title)}</h3>${body}<div class="r">${onDelete&&atLeast('admin')?'<button class="danger" data-d>'+esc(delLabel||'Delete')+'</button>':''}<span class="sp"></span><button data-x>Cancel</button><button data-s class="pri">Save</button></div></div>`;
+  document.body.appendChild(o);
+  o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
+  o.querySelector('[data-x]').onclick=closeModal;
+  o.querySelector('[data-s]').onclick=()=>{onSave(o);closeModal()};
+  const d=o.querySelector('[data-d]');
+  if(d)d.onclick=()=>{if(d.dataset.arm!=='1'){d.dataset.arm='1';d.textContent='Click again to confirm';return}onDelete();closeModal()};
+  if(init)init(o);
+  o.querySelector('input')?.focus();
+}
+function dropProject(id){state.allocs.filter(a=>a.proj===id).forEach(a=>del('allocs',a.id));state.allocs=state.allocs.filter(a=>a.proj!==id);state.projects=state.projects.filter(p=>p.id!==id);del('projects',id)}
+function openPerson(id){
+  const p=state.people.find(x=>x.id===id);if(!p)return;
+  const sk=[...(p.skills||[])];let addTag=()=>{};
+  const known=[...new Set(state.people.flatMap(x=>x.skills||[]))];
+  modal('Edit team member',`<label>Name</label><input id="f-n" value="${esc(p.name)}"><label>Job title</label><input id="f-r" value="${esc(p.role||'')}"><label>Employment</label><select id="f-e"><option value="permanent" ${p.emp!=='contractor'?'selected':''}>Permanent</option><option value="contractor" ${p.emp==='contractor'?'selected':''}>Contractor</option></select><label>Recruitment stage</label><select id="f-s">${Object.entries(STG).map(([k,v])=>`<option value="${k}" ${(p.stage||'active')===k?'selected':''}>${v}</option>`).join('')}</select><label>Capacity (hours per day)</label><input id="f-c" type="number" min="1" max="24" step="0.5" value="${p.cap||8}"><label>Skills</label><div id="tg" class="tags big"></div><input id="ti" list="skl" placeholder="Type a skill, press Enter"><datalist id="skl">${known.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`,
+    o=>{addTag();p.name=o.querySelector('#f-n').value.trim()||p.name;p.role=o.querySelector('#f-r').value.trim();p.cap=Math.max(1,parseFloat(o.querySelector('#f-c').value)||8);p.skills=sk;p.emp=o.querySelector('#f-e').value;p.stage=o.querySelector('#f-s').value;put('people',p);render()},
+    ()=>{state.allocs.filter(a=>a.person===id).forEach(a=>del('allocs',a.id));state.allocs=state.allocs.filter(a=>a.person!==id);state.people=state.people.filter(x=>x.id!==id);del('people',id);render()},'Remove person and bookings',
+    o=>{const box=o.querySelector('#tg'),inp=o.querySelector('#ti');
+      const draw=()=>{box.innerHTML=sk.map((s,i)=>`<em>${esc(s)} <a data-i="${i}" role="button" aria-label="Remove ${esc(s)}">×</a></em>`).join('')};
+      addTag=()=>{inp.value.split(',').map(s=>s.trim()).filter(s=>s&&!sk.includes(s)).forEach(s=>sk.push(s));inp.value='';draw()};
+      inp.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();addTag()}});
+      box.addEventListener('click',e=>{const a=e.target.closest('[data-i]');if(a){sk.splice(+a.dataset.i,1);draw()}});draw()});
+}
+function openClient(id){
+  const c=client(id);if(!c)return;let col=c.color;
+  modal('Edit client',`<label>Name</label><input id="f-n" value="${esc(c.name)}"><label>Colour</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label>Custom colour</label><input type="color" id="f-col" value="${/^#[0-9a-f]{6}$/i.test(col)?col:'#5c6370'}" style="height:34px;padding:2px">`,
+    o=>{c.name=o.querySelector('#f-n').value.trim()||c.name;c.color=col;put('clients',c);render()},
+    ()=>{state.projects.filter(p=>p.clientId===id).forEach(p=>dropProject(p.id));state.clients=state.clients.filter(x=>x.id!==id);del('clients',id);render()},'Delete client and its projects',
+    o=>{const ci=o.querySelector('#f-col');o.querySelector('.sw').onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;col=b.dataset.c;ci.value=col;o.querySelectorAll('.sw button').forEach(x=>x.classList.toggle('on',x===b))};ci.oninput=()=>{col=ci.value;o.querySelectorAll('.sw button').forEach(x=>x.classList.toggle('on',x.dataset.c===col))}});
+}
+function openProjectOld(id){
+  const p=state.projects.find(x=>x.id===id);if(!p)return;
+  modal('Edit project',`<label>Name</label><input id="f-n" value="${esc(p.name)}">`+(p.leave?'':`<label>Client</label><select id="f-c"><option value="">No client</option>${state.clients.map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`),
+    o=>{p.name=o.querySelector('#f-n').value.trim()||p.name;const s=o.querySelector('#f-c');if(s)p.clientId=s.value;put('projects',p);render()},
+    p.leave?null:()=>{dropProject(id);render()},'Delete project and its bookings');
+}
+document.addEventListener('click',e=>{
+  if(readOnly||!atLeast('manager'))return;let x;const t=e.target;
+  if(t.closest('.rh'))return;
+  if(x=t.closest('[data-eclient]'))openClient(x.dataset.eclient);
+  else if(x=t.closest('[data-eproj]'))openProject(x.dataset.eproj);
+  else if(x=t.closest('[data-hd]')){if(atLeast('admin'))openHoliday(x.dataset.hd,e)}
+  else if(x=t.closest('[data-edit]'))openPerson(x.dataset.edit);
+  else if(x=t.closest('[data-addp]')){const i=document.querySelector('[data-np="'+x.dataset.addp+'"]'),n=i.value.trim();if(!n)return;const own=x.dataset.addp==='_';if(own&&!atLeast('admin'))return;const p={id:uid(),name:n,clientId:own?'':x.dataset.addp,n:Date.now()};if(own)p.color=PALETTE[(state.projects.length*7)%PALETTE.length];state.projects.push(p);put('projects',p);render();if(own)openProject(p.id)}
+});
+document.getElementById('flt').oninput=e=>{filterQ=e.target.value.trim().toLowerCase();render()};
+function openProject(id){
+  const p=state.projects.find(x=>x.id===id);if(!p)return;
+  const built=p.id==='lv';let col=p.color||'#5c6370';
+  const extra=built?'':`<label>Client</label><select id="f-c"><option value="">No client</option>${state.clients.map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select><label>Colour (used when there is no client)</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="f-l" ${p.leave?'checked':''} style="width:auto"> Shows as time off (hatched, not counted as work)</label>`;
+  modal('Edit project',`<label>Name</label><input id="f-n" value="${esc(p.name)}">${extra}`,
+    o=>{p.name=o.querySelector('#f-n').value.trim()||p.name;const s=o.querySelector('#f-c');if(s){p.clientId=s.value;p.leave=o.querySelector('#f-l').checked;p.color=col}put('projects',p);render()},
+    built?null:()=>{dropProject(id);render()},'Delete item and its bookings',
+    o=>{const sw=o.querySelector('.sw');if(sw)sw.onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;col=b.dataset.c;sw.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))}});
+}
+/* ---------- sidebar toggle, sorting, skills filter ---------- */
+document.addEventListener('click',e=>{const x=e.target.closest('[data-tg]');if(!x)return;const k=x.dataset.tg;collapsed[k]=!collapsed[k];ls.set('collapsed',collapsed);render()});
+document.getElementById('exa').onclick=()=>{collapsed={};ls.set('collapsed',collapsed);render()};
+document.getElementById('cla').onclick=()=>{state.clients.forEach(c=>collapsed[c.id]=true);collapsed._=true;ls.set('collapsed',collapsed);render()};
+const applyPane=()=>{document.body.classList.toggle('nopane',paneHidden);document.getElementById('pane').textContent=paneHidden?'Show projects':'Hide projects'};
+document.getElementById('pane').onclick=()=>{paneHidden=!paneHidden;ls.set('pane',paneHidden);applyPane()};applyPane();
+const srt=document.getElementById('srt');srt.value=sortBy;srt.onchange=()=>{sortBy=srt.value;ls.set('sort',sortBy);render()};
+const updSkillBtn=()=>{document.getElementById('skb').textContent=skillSel.size?'Skills ('+skillSel.size+')':'Skills'};
+function openSkills(btn){
+  closePop();
+  const all=[...new Set(state.people.flatMap(p=>p.skills||[]))].sort((a,b)=>a.localeCompare(b));
+  const p=document.createElement('div');p.className='pop';p.style.width='260px';p.style.maxHeight='60vh';p.style.overflow='auto';
+  p.innerHTML=`<b>Show people with any of these skills</b>${all.length?all.map(s=>`<label style="display:flex;gap:8px;align-items:center;margin:6px 0;color:var(--ink);font-size:13px"><input type="checkbox" value="${esc(s)}" ${skillSel.has(s)?'checked':''} style="width:auto"> ${esc(s)}</label>`).join(''):'<p class="hint">No skills yet. Add some by editing a team member.</p>'}<div class="r"><button id="skc">Clear</button></div>`;
+  const r=btn.getBoundingClientRect();p.style.left=Math.max(8,Math.min(r.left,innerWidth-280))+'px';p.style.top=(r.bottom+6)+'px';
+  document.body.appendChild(p);
+  p.onchange=e=>{const v=e.target.value;if(e.target.checked)skillSel.add(v);else skillSel.delete(v);updSkillBtn();render()};
+  p.querySelector('#skc').onclick=()=>{skillSel.clear();p.querySelectorAll('input').forEach(i=>i.checked=false);updSkillBtn();render()};
+}
+document.getElementById('skb').onclick=e=>openSkills(e.currentTarget);
+/* ---------- activity log: who changed what ---------- */
+const shadow={};
+function describe(kind,id,obj,old){
+  const cur=obj||old||{},out=[];
+  const pn=i=>{const x=state.people.find(y=>y.id===i);return x?x.name:'someone'};
+  const prn=i=>{const x=state.projects.find(y=>y.id===i);return x?labelOf(x):'a project'};
+  const chg=k=>old&&obj&&JSON.stringify(old[k])!==JSON.stringify(obj[k]);
+  if(kind==='allocs'){
+    const w=pn(cur.person),p=prn(cur.proj);
+    if(!obj)return `removed ${w} from ${p}`;
+    if(!old)return `booked ${w} on ${p} (${obj.hrs}h/day)`;
+    if(chg('hrs'))out.push(`changed ${w}'s hours on ${p} from ${old.hrs}h to ${obj.hrs}h/day`);
+    if(chg('status'))out.push(`marked ${w} on ${p} as ${obj.status||'confirmed'}`);
+    if(chg('comment'))out.push(`edited the comment for ${w} on ${p}`);
+    if(chg('person'))out.push(`moved ${p} from ${pn(old.person)} to ${w}`);
+    if(chg('proj'))out.push(`changed ${w}'s booking to ${p}`);
+    if(chg('start')||chg('end'))out.push(`changed the dates of ${w}'s ${p} booking`);
+  }else if(kind==='projects'){
+    const n=labelOf(cur);
+    if(!obj)return `deleted project ${n}`;
+    if(!old)return `added project ${n}`;
+    if(chg('start')||chg('end'))out.push(`changed the timeline of ${n} to ${obj.start} – ${obj.end}`);
+    if(chg('name'))out.push(`renamed project ${old.name} to ${obj.name}`);
+    if(chg('clientId'))out.push(`moved ${obj.name} to another client`);
+    if(chg('ownerId'))out.push(`set the owner of ${n} to ${pn(obj.ownerId)}`);
+    if(chg('stage'))out.push(`set the stage of ${n} to ${obj.stage}`);
+    if(chg('billable'))out.push(`marked ${n} as ${obj.billable===false?'non-billable':'billable'}`);
+    if(chg('code'))out.push(`changed the code of ${n}`);
+    if(chg('notes'))out.push(`edited the notes for ${n}`);
+    if(chg('color')||chg('leave'))out.push(`changed the look of ${n}`);
+  }else if(kind==='people'){
+    const n=cur.name||'someone';
+    if(!obj)return `removed team member ${n}`;
+    if(!old)return `added team member ${n}`;
+    if(chg('name'))out.push(`renamed ${old.name} to ${obj.name}`);
+    if(chg('role'))out.push(`changed the job title of ${n} to ${obj.role||'none'}`);
+    if(chg('emp'))out.push(`marked ${n} as ${obj.emp||'permanent'}`);
+    if(chg('stage'))out.push(`set the recruitment stage of ${n} to ${STG[obj.stage]||obj.stage}`);
+    if(chg('cap'))out.push(`changed the daily capacity of ${n} to ${obj.cap}h`);
+    if(chg('skills'))out.push(`changed the skills of ${n}`);
+  }else if(kind==='clients'){
+    const n=cur.name||'a client';
+    if(!obj)return `deleted client ${n}`;
+    if(!old)return `added client ${n}`;
+    if(chg('name'))out.push(`renamed client ${old.name} to ${obj.name}`);
+    if(chg('color'))out.push(`changed the colour of ${n}`);
+  }else if(kind==='holidays'){
+    return obj?`marked ${id} as a public holiday${obj.name?' ('+obj.name+')':''}`:`removed the public holiday on ${id}`;
+  }else if(kind==='users'){
+    const n=cur.name||'a user';
+    if(!old)return obj.status==='pending'?'requested access':`added ${n} as ${obj.role}`;
+    if(chg('status')){if(obj.status==='approved')return `approved ${n} as ${obj.role}`;if(obj.status==='declined')return old.status==='approved'?`removed access for ${n}`:`declined access for ${n}`;return null}
+    if(chg('role'))out.push(`changed ${n}'s role from ${old.role} to ${obj.role}`);
+  }
+  return out.length?out.join('; '):null;
+}
+function logChange(kind,id,obj){
+  const key=kind+'/'+id,old=shadow[key]?JSON.parse(shadow[key]):null;
+  if(obj)shadow[key]=JSON.stringify(obj);else delete shadow[key];
+  if(kind==='log')return;
+  const text=describe(kind,id,obj,old);if(!text)return;
+  db.collection('log').doc(uid()).set({at:Date.now(),by:myId||'',byName:(me&&me.name)||'Unknown',role:myRole||'',text}).catch(()=>{});
+}
+let logRows=[],logSub=null,logDraw=null;
+function openLog(){
+  if(myRole!=='admin'||!db)return;
+  closeModal();closePop();
+  if(!logSub)logSub=db.collection('log').orderBy('at','desc').limit(300).onSnapshot(s=>{logRows=s.docs.map(d=>({id:d.id,...d.data()}));if(logDraw)logDraw()},fail);
+  const o=document.createElement('div');o.className='ov-modal';document.body.appendChild(o);
+  o.innerHTML=`<div class="dlg" style="width:660px"><h3>Activity log</h3><p class="hint">Latest 300 changes, newest first.</p><input id="lq" placeholder="Search by person or change" aria-label="Search the activity log"><div id="ll" style="margin-top:10px;max-height:60vh;overflow:auto"></div><div class="r"><span class="sp"></span><button data-x>Close</button></div></div>`;
+  let q='';
+  const draw=()=>{const rows=logRows.filter(r=>!q||((r.byName||'')+' '+r.text).toLowerCase().includes(q));
+    o.querySelector('#ll').innerHTML=rows.length?rows.map(r=>`<div class="lr"><div class="hint">${new Date(r.at).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div><div><b>${esc(r.byName||'Unknown')}</b> ${esc(r.text)}</div></div>`).join(''):'<p class="hint">Nothing logged yet.</p>'};
+  logDraw=draw;draw();
+  o.querySelector('#lq').oninput=e=>{q=e.target.value.trim().toLowerCase();draw()};
+  o.querySelector('[data-x]').onclick=closeModal;
+  o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
+}
+document.getElementById('act').onclick=openLog;
+/* ---------- project details pane, assignments, board filter ---------- */
+function addAssignment(pid,projId){
+  const pr=proj(projId);if(!pr||state.allocs.some(a=>a.person===pid&&a.proj===projId))return;
+  if(isLinked(pr)&&!pr.start){const s=nextWork(lowerBound(todayISO),1);if(s>=0){pr.start=cols[s];pr.end=cols[addWork(s,5)];put('projects',pr)}}
+  const n={id:uid(),person:pid,proj:projId,hrs:4};state.allocs.push(n);put('allocs',n);
+}
+function fillPf(){
+  const s=document.getElementById('pf');if(!s)return;
+  const other=state.projects.filter(p=>!client(p.clientId));
+  s.innerHTML='<option value="">All clients and projects</option>'+state.clients.map(c=>`<optgroup label="${esc(c.name)}"><option value="c:${c.id}">All of ${esc(c.name)}</option>${state.projects.filter(p=>p.clientId===c.id).map(p=>`<option value="p:${p.id}">${esc(p.name)}</option>`).join('')}</optgroup>`).join('')+(other.length?`<optgroup label="Time off and other">${other.map(p=>`<option value="p:${p.id}">${esc(p.name)}</option>`).join('')}</optgroup>`:'');
+  s.value=pf;if(s.value!==pf){pf='';s.value=''}
+}
+const PSTAGES=['Proposal','Planning','Active','On hold','Complete'];
+function openDetails(id){let pane=document.getElementById('dpane');if(!pane){pane=document.createElement('div');pane.id='dpane';pane.className='dpane';document.body.appendChild(pane)}pane.dataset.id=id;drawDetails()}
+function drawDetails(){
+  const pane=document.getElementById('dpane');if(!pane)return;
+  const pr=proj(pane.dataset.id);if(!pr){pane.remove();return}
+  const c=client(pr.clientId),linked=isLinked(pr),dis=atLeast('manager')?'':'disabled';
+  const team=state.allocs.filter(a=>a.proj===pr.id),free=state.people.filter(p=>!team.some(a=>a.person===p.id));
+  const opt=(v,l,cur)=>`<option value="${v}" ${v===cur?'selected':''}>${esc(l)}</option>`;
+  const bl=pr.billable===false?'n':'b';
+  pane.innerHTML=`<div class="dh"><div><b>Project details</b><br><span class="hint">${c?esc(c.name)+' / ':''}${esc(pr.name)}</span></div><button class="ed" data-dx aria-label="Close">×</button></div>`
+   +`<label>Owner</label><select data-f="ownerId" ${dis}>${opt('','Unassigned',pr.ownerId||'')}${state.people.map(p=>opt(p.id,p.name,pr.ownerId)).join('')}</select>`
+   +`<label>Project code</label><input data-f="code" value="${esc(pr.code||'')}" ${dis}>`
+   +`<label>Stage</label><select data-f="stage" ${dis}>${PSTAGES.map(s=>opt(s,s,pr.stage||'Planning')).join('')}</select>`
+   +`<label>Billing</label><select data-f="billable" ${dis}>${opt('b','Billable',bl)}${opt('n','Non-billable',bl)}</select>`
+   +(linked?`<div class="two"><div><label>Start</label><input type="date" data-f="start" value="${pr.start||''}" ${dis}></div><div><label>End</label><input type="date" data-f="end" value="${pr.end||''}" ${dis}></div></div>`:`<p class="hint">Dates for this item are set per booking on the chart.</p>`)
+   +`<label>Notes</label><textarea data-f="notes" rows="3" ${dis}>${esc(pr.notes||'')}</textarea>`
+   +(linked?`<label>Project team</label>`+(team.map(a=>{const p=state.people.find(x=>x.id===a.person);return `<div class="tm"><span>${esc(p?p.name:'Unknown')}</span><input type="number" min="0.5" max="16" step="0.5" value="${a.hrs}" data-th="${a.id}" ${dis} aria-label="Hours per day"><span class="hint">h/day</span><button class="ed" data-tr="${a.id}" ${dis} aria-label="Remove from project">×</button></div>`}).join('')||'<p class="hint">Nobody assigned yet.</p>')+(dis||!free.length?'':`<select data-ta><option value="">Add a resource</option>${free.map(p=>opt(p.id,p.name,'')).join('')}</select>`):'');
+}
+document.addEventListener('click',e=>{if(e.target.closest('[data-dx]'))document.getElementById('dpane')?.remove()});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-tr]');if(!b||!atLeast('manager'))return;const a=state.allocs.find(x=>x.id===b.dataset.tr);if(!a)return;state.allocs=state.allocs.filter(x=>x!==a);del('allocs',a.id);render();drawDetails()});
+document.addEventListener('change',e=>{
+  const pane=document.getElementById('dpane');if(!pane||!pane.contains(e.target)||!atLeast('manager'))return;
+  const t=e.target,pr=proj(pane.dataset.id);if(!pr)return;
+  if(t.dataset.f){const f=t.dataset.f,v=t.value;
+    if(f==='billable')pr.billable=v==='b';
+    else if(f==='start'||f==='end'){if(!v)return;const s=f==='start'?v:pr.start,en=f==='end'?v:pr.end;if(s&&en&&en<s){t.value=pr[f]||'';return}pr[f]=v;if(!pr.end)pr.end=pr.start;if(!pr.start)pr.start=pr.end}
+    else pr[f]=v;
+    put('projects',pr);render()}
+  else if(t.dataset.th){const a=state.allocs.find(x=>x.id===t.dataset.th);if(a){a.hrs=Math.max(.5,Math.min(16,parseFloat(t.value)||a.hrs));put('allocs',a);render()}}
+  else if('ta' in t.dataset){if(t.value){addAssignment(t.value,pr.id);render();drawDetails()}}
+});
+document.addEventListener('pointerdown',e=>{const h=e.target.closest('.dh');if(!h||e.target.closest('button'))return;const pane=h.parentElement,r=pane.getBoundingClientRect(),ox=e.clientX-r.left,oy=e.clientY-r.top;
+  const mv=ev=>{pane.style.left=Math.max(0,ev.clientX-ox)+'px';pane.style.top=Math.max(0,ev.clientY-oy)+'px';pane.style.right='auto'};
+  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up)};addEventListener('pointermove',mv);addEventListener('pointerup',up)});
+document.getElementById('pf').onchange=e=>{pf=e.target.value;render()};
+/* ---------- access control: roles and sign-up requests ---------- */
+const saveUser=u=>{const i=state.users.findIndex(x=>x.id===u.id);if(i>=0)state.users[i]=u;else state.users.push(u);put('users',u)};
+function evalAccess(){
+  const rec=state.users.find(x=>x.id===myId);
+  const boot=myId&&(isOwnerFlag||BOOT.includes(((me&&me.email)||'').toLowerCase()));
+  if(boot){myRole='admin';if((!rec||rec.status!=='approved'||rec.role!=='admin')&&!bootWrote){bootWrote=true;saveUser({id:myId,name:(rec&&rec.name)||(me&&me.name)||'',jobTitle:(rec&&rec.jobTitle)||'',email:((me&&me.email)||'').toLowerCase(),status:'approved',role:'admin',n:(rec&&rec.n)||Date.now()})}}
+  else myRole=rec&&rec.status==='approved'?rec.role:null;
+  document.body.dataset.role=myRole||'';
+  const pend=state.users.filter(u=>u.status==='pending').length,ub=document.getElementById('usr');
+  ub.hidden=myRole!=='admin';document.getElementById('act').hidden=myRole!=='admin';ub.textContent='Users'+(pend?' ('+pend+')':'');
+  setStatus((readOnly?'Shared · read only':'Shared · live')+(myRole?' · '+((me&&me.name)?me.name+' · ':'')+myRole:''));
+  render();
+}
+function renderGate(){
+  let g=document.getElementById('gate');
+  if(!(db&&usersReady&&!myRole)){if(g)g.remove();return}
+  const rec=state.users.find(x=>x.id===myId);
+  const k=!myId?'a':!rec?'b':rec.status;
+  if(!g){g=document.createElement('div');g.id='gate';g.className='ov-modal';g.style.zIndex=90;g.style.background='var(--bg)';document.body.appendChild(g)}
+  if(g.dataset.k===k)return;g.dataset.k=k;
+  const mail='mailto:jakes@thecrmteam.com,zelda@thecrmteam.com?subject='+encodeURIComponent('Capacity planner access request')+'&body='+encodeURIComponent('Hi, I have requested access to the capacity planner.');
+  g.innerHTML=`<div class="dlg"><h3>Capacity planner</h3>`+(k==='a'?`<p>Sign in to your Claude account, then reload this page.</p>`:k==='b'?`<p>You don't have access yet. Send a request and an admin will review it.</p><label>Name</label><input id="gn" value="${esc((me&&me.name)||'')}"><label>Job title</label><input id="gj"><label>Email</label><input id="ge" type="email" value="${esc((me&&me.email)||'')}"><p class="hint" id="gm"></p><div class="r"><span class="sp"></span><button class="pri" id="rq">Request access</button></div>`:k==='pending'?`<p>Your request is waiting for approval. This page updates by itself once an admin approves you.</p><p><button onclick="doLogout()">Sign out</button></p>`:`<p>Your access request was not approved. Contact an admin if you think this is a mistake.</p>`)+`</div>`;
+  const rq=g.querySelector('#rq');
+  if(rq)rq.onclick=()=>{const n=g.querySelector('#gn').value.trim(),j=g.querySelector('#gj').value.trim(),em=g.querySelector('#ge').value.trim();if(!n||!em){g.querySelector('#gm').textContent='Please enter your name and email.';return}saveUser({id:myId,name:n,jobTitle:j,email:em.toLowerCase(),status:'pending',requested:Date.now(),n:Date.now()});evalAccess();renderGate()};
+}
+function openUsers(){
+  if(myRole!=='admin')return;
+  closeModal();closePop();
+  const o=document.createElement('div');o.className='ov-modal';document.body.appendChild(o);
+  const opts=sel=>['contributor','manager','admin'].map(r=>`<option value="${r}" ${r===sel?'selected':''}>${r[0].toUpperCase()+r.slice(1)}</option>`).join('');
+  const info=u=>`<div><b>${esc(u.name||'?')}${u.id===myId?' (you)':''}</b><br><span class="hint">${esc(u.jobTitle||'No job title')} · ${esc(u.email||'')}</span></div>`;
+  const admins=()=>state.users.filter(u=>u.status==='approved'&&u.role==='admin').length;
+  const draw=()=>{
+    const pend=state.users.filter(u=>u.status==='pending'),acc=state.users.filter(u=>u.status==='approved'),dec=state.users.filter(u=>u.status==='declined');
+    o.innerHTML=`<div class="dlg" style="width:620px"><h3>Users and roles</h3><label>Waiting for approval</label>${pend.length?pend.map(u=>`<div class="ur">${info(u)}<select data-ar="${u.id}" aria-label="Role">${opts('contributor')}</select><label class="ck"><input type="checkbox" data-at="${u.id}" checked> Add to team chart</label><button class="pri" data-ap="${u.id}">Approve</button><button data-dc="${u.id}">Decline</button></div>`).join(''):'<p class="hint">No requests waiting.</p>'}<label>People with access</label>${acc.map(u=>`<div class="ur">${info(u)}<select data-rr="${u.id}" aria-label="Role">${opts(u.role)}</select><button class="danger" data-rv="${u.id}">Remove access</button></div>`).join('')||'<p class="hint">Nobody yet.</p>'}${dec.length?`<label>Declined</label>${dec.map(u=>`<div class="ur">${info(u)}<button data-ap="${u.id}">Approve as contributor</button></div>`).join('')}`:''}<div class="r"><span class="sp"></span><button data-x>Close</button></div></div>`;
+  };
+  usersDraw=draw;draw();
+  o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
+  o.addEventListener('change',e=>{const s=e.target.closest('[data-rr]');if(!s)return;const u=state.users.find(x=>x.id===s.dataset.rr);if(!u)return;if(u.role==='admin'&&s.value!=='admin'&&admins()<2){s.value='admin';setStatus('There must be at least one admin.');return}u.role=s.value;saveUser(u);evalAccess();draw()});
+  o.addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+    if(b.hasAttribute('data-x')){closeModal();return}
+    const id=d.ap||d.dc||d.rv;const u=state.users.find(x=>x.id===id);if(!u)return;
+    if(d.ap){const sel=o.querySelector('[data-ar="'+id+'"]'),at=o.querySelector('[data-at="'+id+'"]');u.status='approved';u.role=sel?sel.value:'contributor';
+      if(at&&at.checked&&!state.people.some(p=>p.userId===id)){const p={id:uid(),name:u.name,role:u.jobTitle||'',cap:8,skills:[],userId:id,n:Date.now()};state.people.push(p);put('people',p)}}
+    else if(d.dc){u.status='declined'}
+    else if(d.rv){if(u.role==='admin'&&admins()<2){setStatus('There must be at least one admin.');return}u.status='declined';u.role=null}
+    saveUser(u);evalAccess();draw();
+  });
+}
+document.getElementById('usr').onclick=openUsers;
+/* ---------- holidays ---------- */
+function openHoliday(iso,e){
+  const d=parse(iso);if(d.getDay()===0||d.getDay()===6)return;
+  closePop();const h=state.holidays.find(x=>x.id===iso);
+  const p=document.createElement('div');p.className='pop';
+  p.innerHTML=`<b>${d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</b><label for="hn">Holiday name (optional)</label><input id="hn" value="${esc(h?h.name:'')}" placeholder="e.g. Heritage Day"><div class="r">${h?'<button id="hx" class="danger">Remove holiday</button>':''}<span class="sp"></span><button id="hs" class="pri">${h?'Save':'Mark as public holiday'}</button></div>`;
+  document.body.appendChild(p);
+  p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-250))+'px';p.style.top=(e.clientY+14)+'px';
+  const nm=p.querySelector('#hn');nm.focus();
+  nm.onkeydown=ev=>{if(ev.key==='Enter')p.querySelector('#hs').click()};
+  p.querySelector('#hs').onclick=()=>{const o={id:iso,name:nm.value.trim()};state.holidays=state.holidays.filter(x=>x.id!==iso).concat(o);put('holidays',o);closePop();render()};
+  const x=p.querySelector('#hx');if(x)x.onclick=()=>{state.holidays=state.holidays.filter(y=>y.id!==iso);del('holidays',iso);closePop();render()};
+}
+/* ---------- row resizing (per viewer, saved in this browser) ---------- */
+const barTall=pr=>{const c=client(pr.clientId);return(c?'<small>'+esc(c.name)+'</small><br>':'')+'<b>'+esc(pr.name)+'</b>'};
+let rh=null;
+document.addEventListener('pointerdown',e=>{const h=e.target.closest('.rh');if(!h)return;e.preventDefault();rh={id:h.dataset.rh,y:e.clientY,h:h.closest('.row').offsetHeight}});
+document.addEventListener('pointermove',e=>{if(!rh)return;rowH[rh.id]=Math.round(Math.max(44,Math.min(400,rh.h+e.clientY-rh.y)));render()});
+document.addEventListener('pointerup',()=>{if(rh){rh=null;saveRowH()}});
+document.addEventListener('dblclick',e=>{const h=e.target.closest('.rh');if(h){delete rowH[h.dataset.rh];saveRowH();render()}});
+document.getElementById('rrh').onclick=()=>{rowH={};saveRowH();render()};
+/* ---------- Vercel version: login page and connector to /api ---------- */
+let session=null;
+const API=async(path,body)=>{
+  const r=await fetch(path,{method:body?'POST':'GET',credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  let j={};try{j=await r.json()}catch(e){}
+  if(r.status===401&&session){location.reload()}
+  if(!r.ok)throw Object.assign(new Error(j.error||('HTTP '+r.status)),{code:r.status});
+  return j;
+};
+function makeDB(){
+  let rev=-1,store={},loaded=false,timer=null;const subs=[];
+  const docsOf=(coll,o)=>{
+    let a=Object.entries(store[coll]||{}).map(([id,v])=>({id,data:()=>v}));
+    if(o&&o.by)a.sort((x,y)=>{const p=x.data()[o.by],q=y.data()[o.by];return(o.dir==='desc'?-1:1)*(p>q?1:p<q?-1:0)});
+    if(o&&o.n)a=a.slice(0,o.n);
+    return a;
+  };
+  const fire=()=>subs.forEach(s=>s.cb({docs:docsOf(s.coll,s.o)}));
+  const poll=async()=>{
+    try{const j=await API('/api/data?rev='+rev);
+      if(j.changed){store=j.data;rev=j.rev;loaded=true;fire()}else if(!loaded){loaded=true;fire()}}
+    catch(e){subs.forEach(s=>s.err&&s.err(e))}
+  };
+  const soon=()=>{clearTimeout(timer);timer=setTimeout(poll,500)};
+  const write=async ops=>{try{await API('/api/data',{ops})}catch(e){rev=-1;poll();throw e}soon()};
+  const coll=(name,o={})=>({
+    doc:id=>({
+      set:obj=>{(store[name]=store[name]||{})[id]=obj;fire();return write([{op:'set',coll:name,id,data:obj}])},
+      delete:()=>{if(store[name])delete store[name][id];fire();return write([{op:'delete',coll:name,id}])}
+    }),
+    onSnapshot:(cb,err)=>{subs.push({coll:name,o,cb,err});if(loaded)cb({docs:docsOf(name,o)});return()=>{}},
+    orderBy:(by,dir)=>coll(name,{...o,by,dir}),
+    limit:n=>coll(name,{...o,n})
+  });
+  poll();
+  setInterval(()=>{if(!document.hidden)poll()},5000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
+  return{collection:n=>coll(n)};
+}
+function startApp(){
+  window.claude={use:async n=>n==='db'?makeDB():{id:async()=>session.id,me:async()=>({name:session.name,email:session.username}),isOwner:async()=>false,can:async()=>true}};
+  document.getElementById('lo').hidden=false;
+  connect();
+}
+async function doLogout(){try{await API('/api/auth',{action:'logout'})}catch(e){}location.reload()}
+function showLogin(){
+  let o=document.getElementById('login');if(o)o.remove();
+  o=document.createElement('div');o.id='login';o.className='ov-modal';o.style.cssText='z-index:95;background:var(--bg)';document.body.appendChild(o);
+  let mode='in';
+  const draw=()=>{
+    o.innerHTML=`<div class="dlg"><h3>Capacity planner</h3><div class="seg" id="lm" style="margin:10px 0"><button data-m="in" class="${mode==='in'?'on':''}">Log in</button><button data-m="up" class="${mode==='up'?'on':''}">Create account</button></div><label>Username</label><input id="lu" autocomplete="username" autocapitalize="none" spellcheck="false"><label>Password</label><input id="lp" type="password" autocomplete="${mode==='in'?'current-password':'new-password'}">${mode==='up'?'<label>Full name</label><input id="ln" autocomplete="name"><label>Job title</label><input id="lj"><p class="hint">New accounts must be approved by an admin before you can see the plan.</p>':''}<p class="hint" id="lmsg" role="alert"></p><div class="r"><span class="sp"></span><button class="pri" id="lgo">${mode==='in'?'Log in':'Create account'}</button></div></div>`;
+    o.querySelector('#lm').onclick=e=>{const b=e.target.closest('button');if(b){mode=b.dataset.m;draw()}};
+    const go=async()=>{
+      const body={action:mode==='in'?'login':'signup',username:o.querySelector('#lu').value,password:o.querySelector('#lp').value};
+      if(mode==='up'){body.name=o.querySelector('#ln').value;body.jobTitle=o.querySelector('#lj').value}
+      const btn=o.querySelector('#lgo'),msg=o.querySelector('#lmsg');btn.disabled=true;msg.textContent='';
+      try{const j=await API('/api/auth',body);session=j.user;o.remove();startApp()}
+      catch(e){msg.textContent=e.message;btn.disabled=false}
+    };
+    o.querySelector('#lgo').onclick=go;
+    o.querySelectorAll('input').forEach(i=>i.onkeydown=e=>{if(e.key==='Enter')go()});
+    o.querySelector('#lu').focus();
+  };
+  draw();
+}
+async function boot(){
+  try{session=(await API('/api/auth',{action:'me'})).user}catch(e){session=null}
+  if(session)startApp();else showLogin();
+}
+render();goToday();boot();
+</script>
+</body>
+</html>

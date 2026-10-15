@@ -1,0 +1,31 @@
+-- Optional: loads the planner data that was in the shared Claude version.
+-- Run once in the Neon SQL editor AFTER the first successful deploy and first page load.
+insert into docs(coll, id, data) values
+('clients','c1','{"color": "#2f9e44", "n": 1, "name": "Spur Corporation"}'::jsonb),
+('clients','c2','{"color": "#c2255c", "n": 2, "name": "Air Products"}'::jsonb),
+('clients','c3','{"color": "#e8590c", "n": 3, "name": "SARGF"}'::jsonb),
+('clients','c4','{"color": "#1c3a8a", "n": 4, "name": "Internal"}'::jsonb),
+('projects','lv','{"color": "#9aa1b5", "leave": true, "n": 5, "name": "Leave"}'::jsonb),
+('projects','p1','{"billable": true, "clientId": "c1", "code": "SPR-001", "color": "#2f9e44", "end": "2026-11-13", "n": 1, "name": "Envisioning", "notes": "Envisioning workshops and discovery.", "ownerId": "t3", "stage": "Active", "start": "2026-10-19"}'::jsonb),
+('projects','p2','{"billable": true, "clientId": "c2", "code": "AIR-001", "color": "#c2255c", "end": "2026-11-20", "n": 2, "name": "Envisioning", "notes": "Scope still being confirmed with the client.", "ownerId": "t1", "stage": "Planning", "start": "2026-11-02"}'::jsonb),
+('projects','p3','{"billable": true, "clientId": "c3", "code": "SAR-001", "color": "#e8590c", "end": "2026-10-23", "n": 3, "name": "South African Response", "notes": "", "ownerId": "t2", "stage": "Active", "start": "2026-10-12"}'::jsonb),
+('projects','p4','{"billable": false, "clientId": "c4", "code": "INT-001", "color": "#5c6370", "end": "2026-11-27", "n": 4, "name": "Iterations", "notes": "Internal iterations and improvements.", "ownerId": "t1", "stage": "Active", "start": "2026-10-12"}'::jsonb),
+('people','t1','{"cap": 8, "emp": "permanent", "n": 1, "name": "Adrian Masters", "role": "Solution Architect", "skills": ["Architecture", "Azure", "D365"], "stage": "active"}'::jsonb),
+('people','t2','{"cap": 8, "emp": "permanent", "n": 2, "name": "Ivana Naidoo", "role": "Delivery Manager", "skills": ["Delivery", "Scrum"], "stage": "active"}'::jsonb),
+('people','t3','{"cap": 8, "emp": "permanent", "n": 3, "name": "Jakes Gous", "role": "Delivery Manager", "skills": ["Delivery", "Finance"], "stage": "active"}'::jsonb),
+('people','t4','{"cap": 8, "emp": "contractor", "n": 4, "name": "Jordan Masters", "role": "Developer, Jnr", "skills": ["Developer", "D365 Customer Service", "Power Apps"], "stage": "active"}'::jsonb),
+('allocs','a1','{"comment": "Kick-off workshop on site", "end": "2026-10-23", "hrs": 3, "person": "t1", "proj": "p1", "start": "2026-10-12"}'::jsonb),
+('allocs','a10','{"end": "2026-11-13", "hrs": 7, "person": "t4", "proj": "p4", "start": "2026-10-19"}'::jsonb),
+('allocs','a2','{"end": "2026-10-30", "hrs": 2, "person": "t1", "proj": "p4", "start": "2026-10-19"}'::jsonb),
+('allocs','a3','{"comment": "Awaiting SOW sign-off", "end": "2026-11-13", "hrs": 3, "person": "t1", "proj": "p2", "start": "2026-11-02", "status": "tentative"}'::jsonb),
+('allocs','a4','{"end": "2026-10-16", "hrs": 4, "person": "t2", "proj": "p3", "start": "2026-10-12"}'::jsonb),
+('allocs','a5','{"end": "2026-10-30", "hrs": 4, "person": "t2", "proj": "p1", "start": "2026-10-19"}'::jsonb),
+('allocs','a6','{"end": "2026-11-13", "hrs": 8, "person": "t2", "proj": "lv", "start": "2026-11-09"}'::jsonb),
+('allocs','a7','{"end": "2026-10-30", "hrs": 4, "person": "t3", "proj": "p2", "start": "2026-10-12"}'::jsonb),
+('allocs','a8','{"end": "2026-10-23", "hrs": 2, "person": "t3", "proj": "p4", "start": "2026-10-19"}'::jsonb),
+('allocs','a9','{"comment": "Pending client budget approval", "end": "2026-11-20", "hrs": 2, "person": "t3", "proj": "p1", "start": "2026-11-02", "status": "tentative"}'::jsonb),
+('allocs','clcyb4c','{"hrs": 4, "person": "t4", "proj": "p1"}'::jsonb),
+('holidays','2026-12-16','{"name": "Day of Reconciliation"}'::jsonb),
+('holidays','2026-12-25','{"name": "Christmas Day"}'::jsonb),
+('holidays','2027-01-01','{"name": "New Year''s Day"}'::jsonb)
+on conflict (coll, id) do nothing;
