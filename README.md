@@ -34,3 +34,9 @@ To run it on your own computer first: install Node, then run `npm install -g ver
 - There is no "forgot password" yet. To reset someone, delete their row in Neon (`delete from app_users where username = 'name';`) and have them sign up again for approval.
 - Five wrong passwords lock an account for 15 minutes.
 - Vercel's free Hobby plan is for personal, non-commercial use. Company use needs a paid plan, or another host that runs Node functions.
+
+## Updating the app later
+Every change to the app means replacing the changed files in your GitHub repository. Vercel notices the commit and republishes by itself within a minute or two.
+- Page and screens: `public/index.html`
+- Saving, roles and history rules: `api/data.js` and `lib/core.js`
+On GitHub, open the repository, choose Add file > Upload files, drag the changed folders or files in (folders keep their paths), and click Commit changes.

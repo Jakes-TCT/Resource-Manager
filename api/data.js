@@ -47,7 +47,14 @@ async function apply(u, ops) {
     const nu = op.data;
     if (op.op !== 'set' || !nu || typeof nu !== 'object' || Array.isArray(nu) || JSON.stringify(nu).length > 20000) throw c.http(400, 'Bad data');
     delete nu.id;
+    delete nu.hist; // history is written by the server only
     if (!c.perm(u.role, coll, 'set', old, nu)) throw c.http(403, 'Your role does not allow this change');
+    if (coll === 'allocs' || coll === 'projects') {
+      const text = c.describeChange(coll, old, nu);
+      let h = (old && old.hist) || [];
+      if (text) h = [...h, { at: Date.now(), by: u.name, text }].slice(-10);
+      nu.hist = h;
+    }
     stmts.push(sql`insert into docs(coll, id, data) values(${coll}, ${id}, ${JSON.stringify(nu)}::jsonb)
       on conflict (coll, id) do update set data = excluded.data`);
   }

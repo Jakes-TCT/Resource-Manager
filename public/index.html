@@ -94,6 +94,15 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
 .seg{display:flex}.seg button{flex:1;border-radius:0}.seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0}.seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 @media (max-width:700px){aside{width:150px}.who,.corner{width:140px}}
 @media (prefers-reduced-motion:no-preference){.al{transition:box-shadow .15s}}
+.pop{width:290px;max-height:calc(100vh - 16px);overflow:auto}
+.as{display:flex;flex-wrap:wrap;gap:4px;align-items:center;border:1px solid var(--line2);border-radius:8px;padding:4px;background:var(--panel)}
+.pop .as input{flex:1;width:auto;min-width:90px;border:none;padding:3px 4px;outline:none}
+.ch2{display:inline-flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:2px 4px 2px 8px;font-size:12.5px}.ch2 b{cursor:pointer;color:var(--mute);padding:0 3px;font-weight:400}
+.sg{border:1px solid var(--line2);border-radius:8px;margin-top:4px;background:var(--panel);overflow:hidden}.sg div{padding:6px 10px;cursor:pointer}.sg div:hover{background:var(--bg)}
+.act{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:12px;font-size:12px}.act a{color:var(--accent);cursor:pointer;white-space:nowrap}
+.hr{padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}#hl{max-height:140px;overflow:auto;margin-top:6px}
+.pop.lim #sg,.pop.lim .ch2 b{display:none}.pop.lim label[for=pa]{display:block}
+.wdr{display:flex;align-items:center;gap:8px;padding:4px 0}.wdr .ck{flex:1}.dlg .wdr input[type=number]{width:70px}
 </style>
 </head>
 <body>
@@ -195,10 +204,28 @@ let offA=[],holMap={};
 const nextWork=(i,dir)=>{i=Math.max(0,Math.min(i,cols.length-1));while(i>=0&&i<cols.length&&offA[i])i+=dir;return i<0||i>=cols.length?-1:i};
 const addWork=(a,n)=>{let i=a,k=1;while(k<n){const j=nextWork(i+1,1);if(j<0)break;i=j;k++}return i};
 const wcount=(a,b)=>{let k=0;for(let i=a;i<=b;i++)if(!offA[i])k++;return Math.max(1,k)};
-const segs=(a,b)=>{const r=[];let s=-1;for(let i=a;i<=b+1;i++){const w=i<=b&&!offA[i];if(w&&s<0)s=i;if(!w&&s>=0){r.push([s,i-1]);s=-1}}return r};
+const segs=(a,b,off)=>{off=off||offA;const r=[];let s=-1;for(let i=a;i<=b+1;i++){const w=i<=b&&!off[i];if(w&&s<0)s=i;if(!w&&s>=0){r.push([s,i-1]);s=-1}}return r};
+let wdA=[];
+const DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const daysOf=p=>{if(p.days)return p.days;const c=p.cap||8;return{1:c,2:c,3:c,4:c,5:c}};
+const capOn=(p,i)=>offA[i]===2?0:(Number(daysOf(p)[wdA[i]])||0);
+const maxCap=p=>{const m=Math.max(0,...Object.values(daysOf(p)).map(Number));return m||p.cap||8};
+function dayLabel(p){
+  const o=[1,2,3,4,5,6,0].filter(d=>(Number(daysOf(p)[d])||0)>0);
+  if(o.join()==='1,2,3,4,5')return '';
+  const runs=[];for(const d of o){const l=runs[runs.length-1];if(l&&(l[l.length-1]+1)%7===d)l.push(d);else runs.push([d])}
+  return runs.map(r=>r.length>2?DN[r[0]]+'\u2013'+DN[r[r.length-1]]:r.map(d=>DN[d]).join(', ')).join(', ');
+}
+function ago(t){
+  const s=Math.max(0,(Date.now()-t)/1000);if(s<60)return 'just now';
+  const m=Math.round(s/60);if(m<60)return m+(m===1?' minute':' minutes')+' ago';
+  const h=Math.round(s/3600);if(h<24)return 'about '+h+(h===1?' hour':' hours')+' ago';
+  const d=Math.round(s/86400);if(d<30)return d+(d===1?' day':' days')+' ago';
+  const mo=Math.round(d/30);return 'about '+mo+(mo===1?' month':' months')+' ago';
+}
 
 function render(){
-  sortAll();buildCols();holMap={};state.holidays.forEach(h=>holMap[h.id]=h.name||'Public holiday');offA=cols.map(c=>{const g=parse(c).getDay();return g===0||g===6?1:(holMap[c]?2:0)});
+  sortAll();buildCols();holMap={};state.holidays.forEach(h=>holMap[h.id]=h.name||'Public holiday');offA=cols.map(c=>{const g=parse(c).getDay();return g===0||g===6?1:(holMap[c]?2:0)});wdA=cols.map(c=>parse(c).getDay());
   const W=cols.length*DW, el=document.getElementById('content');
   el.style.width=(200+W)+'px';
   // header
@@ -211,24 +238,24 @@ function render(){
   cols.forEach((c,i)=>{const d=parse(c);const k=offA[i];dy+=`<div style="width:${DW}px" class="${c===todayISO?'td':''} ${k===1?'we':k===2?'ph':''}" ${k===1?'':`data-hd="${c}" title="${esc(k===2?holMap[c]+' (click to edit)':'Click to mark as a public holiday')}"`}>${'MTWTFSS'[(d.getDay()+6)%7]}<b>${d.getDate()}</b></div>`});
   let html=`<div class="hrow"><div class="corner">${state.people.filter(matches).length} of ${state.people.length} people</div><div class="hdr" style="width:${W}px"><div class="wk">${wk}</div><div class="dy">${dy}</div></div></div>`;
   const tIdx=cols.indexOf(todayISO);
-  const thisWk=cols.map((c,i)=>[c,i]).filter(([c])=>c>=fmt(mondayOf(new Date()))&&c<=addDays(fmt(mondayOf(new Date())),6)).map(x=>x[1]).filter(i=>!offA[i]);
+  const thisWk=cols.map((c,i)=>[c,i]).filter(([c])=>c>=fmt(mondayOf(new Date()))&&c<=addDays(fmt(mondayOf(new Date())),6)).map(x=>x[1]).filter(i=>offA[i]!==2);
   sortedPeople().forEach(p=>{
     const mine=state.allocs.filter(a=>a.person===p.id).filter(visAlloc).map(a=>({a,s:span(eff(a))})).filter(x=>x.s).sort((x,y)=>x.s[0]-y.s[0]);
-    const stk=new Array(cols.length).fill(0),day={},dayAll={};
-    mine.forEach(x=>{let y=0;for(let i=x.s[0];i<=x.s[1];i++)y=Math.max(y,stk[i]);x.y=y;for(let i=x.s[0];i<=x.s[1];i++){stk[i]=y+x.a.hrs;if(!offA[i]){dayAll[i]=(dayAll[i]||0)+x.a.hrs;if(!proj(x.a.proj)?.leave)day[i]=(day[i]||0)+x.a.hrs}}
+    const offP=cols.map((c,i)=>!capOn(p,i));const stk=new Array(cols.length).fill(0),day={},dayAll={};
+    mine.forEach(x=>{let y=0;for(let i=x.s[0];i<=x.s[1];i++)y=Math.max(y,stk[i]);x.y=y;for(let i=x.s[0];i<=x.s[1];i++){stk[i]=y+x.a.hrs;if(!offP[i]){dayAll[i]=(dayAll[i]||0)+x.a.hrs;if(!proj(x.a.proj)?.leave)day[i]=(day[i]||0)+x.a.hrs}}
       });
-    const peak=Math.max(p.cap||8,...stk),PPH=22;
+    const peak=Math.max(maxCap(p),...stk),PPH=22;
     const h=rowH[p.id]?Math.max(44,rowH[p.id]):PAD*2+peak*PPH;
     const pph=(h-PAD*2)/peak;
-    let util=0;thisWk.forEach(i=>util+=day[i]||0);const pct=Math.round(util/(p.cap*Math.max(1,thisWk.length))*100);
+    let util=0;thisWk.forEach(i=>util+=day[i]||0);let capw=0;thisWk.forEach(i=>capw+=capOn(p,i));const pct=Math.round(util/Math.max(1,capw)*100);
     let tr='';
     if(tIdx>=0)tr+=`<div class="col-td" style="left:${tIdx*DW}px;width:${DW}px"></div>`;
-    for(const i in dayAll)if(dayAll[i]>p.cap)tr+=`<div class="ov" style="left:${i*DW}px;width:${DW}px"></div>`;
+    for(const i in dayAll)if(dayAll[i]>capOn(p,i)+0.001)tr+=`<div class="ov" style="left:${i*DW}px;width:${DW}px"></div>`;
     for(let w=0;w<range.weeks;w++)tr+=`<div class="wkl" style="left:${w*7*DW}px"></div>`;
-    cols.forEach((c,i)=>{if(offA[i])tr+=`<div class="off${offA[i]===2?' hol':''}" style="left:${i*DW}px;width:${DW}px"></div>`});
-    mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};segs(x.s[0],x.s[1]).forEach(([si,sj],k,arr)=>{
+    cols.forEach((c,i)=>{if(offP[i])tr+=`<div class="off${offA[i]===2?' hol':''}" style="left:${i*DW}px;width:${DW}px"></div>`});
+    mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};segs(x.s[0],x.s[1],offP).forEach(([si,sj],k,arr)=>{
       tr+=`<div class="al ${pr.leave?'leave':(x.a.status==='tentative'?'tent':'')}${x.a.hrs*pph<36?' sh':''}" data-id="${x.a.id}" title="${esc(labelOf(pr)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${si*DW+1}px;width:${(sj-si+1)*DW-2}px;top:${PAD+x.y*pph}px;height:${Math.max(12,x.a.hrs*pph-2)}px;--c:${colorOf(pr)}"><span class="nm"${x.a.hrs*pph>=52?' style="white-space:normal"':''}>${x.a.hrs*pph>=52?barTall(pr):esc(labelOf(pr))}</span><small>${x.a.hrs}h/day${!pr.leave&&x.a.status==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
-    html+=`<div class="row" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><b>${esc(p.name)}</b><span>${esc(p.role||'')} · ${pct}% this week</span><div class="tags">${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
+    html+=`<div class="row" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><b>${esc(p.name)}</b><span>${esc(p.role||'')} · ${pct}% this week</span><div class="tags">${dayLabel(p)?'<em>'+esc(dayLabel(p))+'</em>':''}${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
   });
   if(!state.people.length)html+='<div class="empty">'+(db&&!synced?'Loading the shared plan…':'Add a team member in the sidebar to start planning.')+'</div>';
   el.innerHTML=html;
@@ -299,14 +326,28 @@ function openPop(id,e){
   closePop();
   const a=state.allocs.find(x=>x.id===id);if(!a)return;
   const p=document.createElement('div');p.className='pop';
-  const tent=a.status==='tentative';const prj=proj(a.proj);const freeP=isLinked(prj)?state.people.filter(q=>!state.allocs.some(b=>b.person===q.id&&b.proj===a.proj)):[];const assignHtml=freeP.length?`<label for="pa">Assign another resource to ${esc(prj.name)}</label><select id="pa"><option value="">Choose a person</option>${freeP.map(q=>`<option value="${q.id}">${esc(q.name)}</option>`).join('')}</select>`:'';
+  const tent=a.status==='tentative';const prj=proj(a.proj);const linked=isLinked(prj);
+  const team=linked?state.allocs.filter(b=>b.proj===a.proj):[];
+  const freeP=linked?state.people.filter(q=>!team.some(b=>b.person===q.id)):[];
+  const hist=[...(a.hist||[]),...((prj&&prj.hist)||[])].sort((x,y)=>y.at-x.at);
+  const histHtml=hist.length?`<div class="act"><span class="hint">\u26a1 Updated by <b>${esc(hist[0].by)}</b> ${ago(hist[0].at)}</span><a id="pvc" role="button" tabindex="0">View changes</a></div><div id="hl" hidden>${hist.slice(0,10).map(h=>`<div class="hr"><b>${esc(h.by)}</b> ${esc(h.text)}<br><span class="hint">${ago(h.at)}</span></div>`).join('')}</div>`:`<div class="act"><span class="hint">\u26a1 No changes recorded yet</span></div>`;
+  const assignHtml=linked?`<label for="pa">Assigned to</label><div class="as" id="as">${team.map(b=>{const q=state.people.find(x=>x.id===b.person);return `<span class="ch2">${esc(q?q.name:'Unknown')}<b data-rm2="${b.id}" role="button" aria-label="Remove from project">\u00d7</b></span>`}).join('')}<input id="pa" placeholder="${team.length?'Add people':'Add people to this project'}" autocomplete="off"></div><div id="sg" class="sg" hidden></div>`:'';
   const opt=x=>`<option value="${x.id}" ${x.id===a.proj?'selected':''}>${esc(x.name)}</option>`;
   const optg=state.clients.map(c=>`<optgroup label="${esc(c.name)}">${state.projects.filter(x=>x.clientId===c.id).map(opt).join('')}</optgroup>`).join('')+state.projects.filter(x=>!client(x.clientId)).map(opt).join('');
-  p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
+  p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
   document.body.appendChild(p);
-  p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-250))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-370))+'px';
+  p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-520))+'px';
   if(!atLeast('manager'))p.classList.add('lim');
-  const pa=p.querySelector('#pa');if(pa)pa.onchange=()=>{if(!pa.value)return;addAssignment(pa.value,a.proj);closePop();render()};
+  const reopen=()=>{const r=p.getBoundingClientRect();closePop();render();openPop(id,{clientX:r.left,clientY:r.top-10})};
+  const pa=p.querySelector('#pa'),sg=p.querySelector('#sg');
+  if(pa){
+    const showSg=()=>{const q=pa.value.trim().toLowerCase();const m=freeP.filter(x=>!q||x.name.toLowerCase().includes(q)).slice(0,6);sg.innerHTML=m.map(x=>`<div data-add="${x.id}">${esc(x.name)} <span class="hint">${esc(x.role||'')}</span></div>`).join('');sg.hidden=!m.length};
+    pa.oninput=showSg;pa.onfocus=showSg;
+    pa.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();const f=sg.querySelector('[data-add]');if(f){addAssignment(f.dataset.add,a.proj);reopen()}}};
+    sg.onpointerdown=ev=>{const d=ev.target.closest('[data-add]');if(!d)return;ev.preventDefault();addAssignment(d.dataset.add,a.proj);reopen()};
+  }
+  p.querySelectorAll('[data-rm2]').forEach(x=>x.onclick=()=>{const bid=x.dataset.rm2;state.allocs=state.allocs.filter(b=>b.id!==bid);del('allocs',bid);if(bid===id){closePop();render()}else reopen()});
+  const pvc=p.querySelector('#pvc');if(pvc)pvc.onclick=()=>{const l=p.querySelector('#hl');l.hidden=!l.hidden};
   p.querySelector('#st').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;p.querySelectorAll('#st button').forEach(x=>x.classList.toggle('on',x===b))};
   p.querySelector('#ph').focus();
   p.querySelector('#pc').onclick=()=>{const c=state.allocs.find(x=>x.id===id);if(c){c.hrs=Math.max(.5,parseFloat(p.querySelector('#ph').value)||c.hrs);c.proj=p.querySelector('#pp').value;c.status=p.querySelector('#st .on').dataset.v;c.comment=p.querySelector('#pk').value.trim();put('allocs',c)}closePop();render()};
@@ -350,10 +391,12 @@ function openPerson(id){
   const p=state.people.find(x=>x.id===id);if(!p)return;
   const sk=[...(p.skills||[])];let addTag=()=>{};
   const known=[...new Set(state.people.flatMap(x=>x.skills||[]))];
-  modal('Edit team member',`<label>Name</label><input id="f-n" value="${esc(p.name)}"><label>Job title</label><input id="f-r" value="${esc(p.role||'')}"><label>Employment</label><select id="f-e"><option value="permanent" ${p.emp!=='contractor'?'selected':''}>Permanent</option><option value="contractor" ${p.emp==='contractor'?'selected':''}>Contractor</option></select><label>Recruitment stage</label><select id="f-s">${Object.entries(STG).map(([k,v])=>`<option value="${k}" ${(p.stage||'active')===k?'selected':''}>${v}</option>`).join('')}</select><label>Capacity (hours per day)</label><input id="f-c" type="number" min="1" max="24" step="0.5" value="${p.cap||8}"><label>Skills</label><div id="tg" class="tags big"></div><input id="ti" list="skl" placeholder="Type a skill, press Enter"><datalist id="skl">${known.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`,
-    o=>{addTag();p.name=o.querySelector('#f-n').value.trim()||p.name;p.role=o.querySelector('#f-r').value.trim();p.cap=Math.max(1,parseFloat(o.querySelector('#f-c').value)||8);p.skills=sk;p.emp=o.querySelector('#f-e').value;p.stage=o.querySelector('#f-s').value;put('people',p);render()},
+  const dm=daysOf(p),NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const daysHtml=[1,2,3,4,5,6,0].map(d=>{const on=(Number(dm[d])||0)>0;return `<div class="wdr"><label class="ck"><input type="checkbox" data-d="${d}" ${on?'checked':''}> ${NAMES[d]}</label><input type="number" min="0.5" max="16" step="0.5" data-h="${d}" value="${on?dm[d]:(p.cap||8)}" ${on?'':'disabled'} aria-label="${NAMES[d]} hours"><span class="hint">h</span></div>`}).join('');
+  modal('Edit team member',`<label>Name</label><input id="f-n" value="${esc(p.name)}"><label>Job title</label><input id="f-r" value="${esc(p.role||'')}"><label>Employment</label><select id="f-e"><option value="permanent" ${p.emp!=='contractor'?'selected':''}>Permanent</option><option value="contractor" ${p.emp==='contractor'?'selected':''}>Contractor</option></select><label>Recruitment stage</label><select id="f-s">${Object.entries(STG).map(([k,v])=>`<option value="${k}" ${(p.stage||'active')===k?'selected':''}>${v}</option>`).join('')}</select><label>Capacity (hours per day)</label><input id="f-c" type="number" min="1" max="24" step="0.5" value="${p.cap||8}"><label>Work days</label><div id="wd">${daysHtml}</div><label>Skills</label><div id="tg" class="tags big"></div><input id="ti" list="skl" placeholder="Type a skill, press Enter"><datalist id="skl">${known.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`,
+    o=>{addTag();p.name=o.querySelector('#f-n').value.trim()||p.name;p.role=o.querySelector('#f-r').value.trim();p.cap=Math.max(1,parseFloat(o.querySelector('#f-c').value)||8);p.skills=sk;{const dd={};o.querySelectorAll('[data-d]').forEach(c=>{if(c.checked){const h=parseFloat(o.querySelector('[data-h="'+c.dataset.d+'"]').value)||p.cap||8;dd[c.dataset.d]=Math.max(.5,Math.min(16,h))}});p.days=Object.keys(dd).length?dd:daysOf({cap:p.cap})}p.emp=o.querySelector('#f-e').value;p.stage=o.querySelector('#f-s').value;put('people',p);render()},
     ()=>{state.allocs.filter(a=>a.person===id).forEach(a=>del('allocs',a.id));state.allocs=state.allocs.filter(a=>a.person!==id);state.people=state.people.filter(x=>x.id!==id);del('people',id);render()},'Remove person and bookings',
-    o=>{const box=o.querySelector('#tg'),inp=o.querySelector('#ti');
+    o=>{o.querySelector('#wd').onchange=e=>{const c=e.target.closest('[data-d]');if(!c)return;const h=o.querySelector('[data-h="'+c.dataset.d+'"]');h.disabled=!c.checked;if(c.checked&&!parseFloat(h.value))h.value=o.querySelector('#f-c').value||8};const box=o.querySelector('#tg'),inp=o.querySelector('#ti');
       const draw=()=>{box.innerHTML=sk.map((s,i)=>`<em>${esc(s)} <a data-i="${i}" role="button" aria-label="Remove ${esc(s)}">×</a></em>`).join('')};
       addTag=()=>{inp.value.split(',').map(s=>s.trim()).filter(s=>s&&!sk.includes(s)).forEach(s=>sk.push(s));inp.value='';draw()};
       inp.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();addTag()}});
@@ -449,6 +492,7 @@ function describe(kind,id,obj,old){
     if(chg('emp'))out.push(`marked ${n} as ${obj.emp||'permanent'}`);
     if(chg('stage'))out.push(`set the recruitment stage of ${n} to ${STG[obj.stage]||obj.stage}`);
     if(chg('cap'))out.push(`changed the daily capacity of ${n} to ${obj.cap}h`);
+    if(chg('days'))out.push(`changed the work days of ${n}`);
     if(chg('skills'))out.push(`changed the skills of ${n}`);
   }else if(kind==='clients'){
     const n=cur.name||'a client';
