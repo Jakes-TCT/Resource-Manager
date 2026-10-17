@@ -81,8 +81,9 @@ module.exports = async (req, res) => {
     const ok = u.status === 'approved' && !!u.role;
     if (req.method === 'GET') {
       const rev = await c.getRev();
-      if (String(rev) === String(req.query.rev)) return res.json({ changed: false, rev });
-      return res.json({ changed: true, rev, data: await snapshot(u, ok) });
+      const online = await c.presence(u, ok);
+      if (String(rev) === String(req.query.rev)) return res.json({ changed: false, rev, online });
+      return res.json({ changed: true, rev, online, data: await snapshot(u, ok) });
     }
     if (req.method === 'POST') {
       if (!c.sameType(req)) throw c.http(415, 'JSON only');

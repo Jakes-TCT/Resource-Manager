@@ -103,15 +103,28 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
 .hr{padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}#hl{max-height:140px;overflow:auto;margin-top:6px}
 .pop.lim #sg,.pop.lim .ch2 b{display:none}.pop.lim label[for=pa]{display:block}
 .wdr{display:flex;align-items:center;gap:8px;padding:4px 0}.wdr .ck{flex:1}.dlg .wdr input[type=number]{width:70px}
+
+.track{cursor:cell}
+.sl{max-height:260px;overflow:auto;margin-top:8px}.sh{font-size:11px;font-weight:600;color:var(--mute);margin:10px 0 4px;text-transform:uppercase}
+.si{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:6px;cursor:pointer}.si:hover{background:var(--bg)}.si.dis{opacity:.5;cursor:default}.si i{width:10px;height:10px;border-radius:3px;flex:none}
+.dlg textarea{width:100%;font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line2);border-radius:6px;padding:5px 8px;resize:vertical}
+.dlg .two{display:flex;gap:8px}.dlg .two>div{flex:1}
+.pres{display:flex;align-items:center;margin-left:6px;padding-left:6px}.pres i{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:600 11px/1 inherit;font-style:normal;color:#fff;margin-left:-6px;border:2px solid var(--panel);box-sizing:border-box}
+.rf{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.rf>div{flex:1;min-width:120px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0}.card{border:1px solid var(--line);border-radius:8px;padding:8px 10px}.card b{display:block;font-size:19px;margin:2px 0}
+.rt{border-collapse:collapse;width:100%;font-size:12.5px}.rt th,.rt td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.rt th:nth-child(-n+3),.rt td:nth-child(-n+3){text-align:left}
+.rt thead th{position:sticky;top:0;background:var(--panel);z-index:1;font-size:11.5px;color:var(--mute)}.rt tfoot td{font-weight:700}.rt td.over{color:#c4303f;font-weight:600}
+.stk{display:flex;height:10px;width:150px;border-radius:5px;overflow:hidden;background:var(--line)}.stk i{display:block;height:100%}
+.lg{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin:8px 0}.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
 </style>
 </head>
 <body>
 <header>
   <h1>Capacity planner</h1>
   <button id="pane">Hide projects</button><button id="today">Today</button>
-  <span class="hint">Drag projects onto a row. Drag bars to move; pull the edges to resize.</span>
+  <span class="hint">Drag projects onto a row. Drag bars to move; pull the edges to resize. Click an empty slot to add a project.</span>
   <span class="sp"></span>
-  <select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><input id="flt" placeholder="Filter team by name, title or skill" aria-label="Filter team" style="width:250px"><button id="act" hidden>Activity</button><button id="lo" hidden onclick="doLogout()">Sign out</button><button id="usr" hidden>Users</button><span id="status" class="hint">Connecting…</span>
+  <button id="rep">Reports</button><select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><input id="flt" placeholder="Filter team by name, title or skill" aria-label="Filter team" style="width:250px"><button id="act" hidden>Activity</button><button id="lo" hidden onclick="doLogout()">Sign out</button><button id="usr" hidden>Users</button><span id="status" class="hint">Connecting…</span><span id="pres" class="pres"></span>
 </header>
 <main>
   <aside>
@@ -205,7 +218,7 @@ const nextWork=(i,dir)=>{i=Math.max(0,Math.min(i,cols.length-1));while(i>=0&&i<c
 const addWork=(a,n)=>{let i=a,k=1;while(k<n){const j=nextWork(i+1,1);if(j<0)break;i=j;k++}return i};
 const wcount=(a,b)=>{let k=0;for(let i=a;i<=b;i++)if(!offA[i])k++;return Math.max(1,k)};
 const segs=(a,b,off)=>{off=off||offA;const r=[];let s=-1;for(let i=a;i<=b+1;i++){const w=i<=b&&!off[i];if(w&&s<0)s=i;if(!w&&s>=0){r.push([s,i-1]);s=-1}}return r};
-let wdA=[];
+let wdA=[],lastDragEnd=0;
 const DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const daysOf=p=>{if(p.days)return p.days;const c=p.cap||8;return{1:c,2:c,3:c,4:c,5:c}};
 const capOn=(p,i)=>offA[i]===2?0:(Number(daysOf(p)[wdA[i]])||0);
@@ -216,6 +229,9 @@ function dayLabel(p){
   const runs=[];for(const d of o){const l=runs[runs.length-1];if(l&&(l[l.length-1]+1)%7===d)l.push(d);else runs.push([d])}
   return runs.map(r=>r.length>2?DN[r[0]]+'\u2013'+DN[r[r.length-1]]:r.map(d=>DN[d]).join(', ')).join(', ');
 }
+const unav=(pr,p)=>!!pr.leave&&!!p&&p.emp==='contractor';
+const barName=(pr,p)=>unav(pr,p)?'Unavailable':labelOf(pr);
+const fmtD=iso=>parse(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
 function ago(t){
   const s=Math.max(0,(Date.now()-t)/1000);if(s<60)return 'just now';
   const m=Math.round(s/60);if(m<60)return m+(m===1?' minute':' minutes')+' ago';
@@ -254,7 +270,7 @@ function render(){
     for(let w=0;w<range.weeks;w++)tr+=`<div class="wkl" style="left:${w*7*DW}px"></div>`;
     cols.forEach((c,i)=>{if(offP[i])tr+=`<div class="off${offA[i]===2?' hol':''}" style="left:${i*DW}px;width:${DW}px"></div>`});
     mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};segs(x.s[0],x.s[1],offP).forEach(([si,sj],k,arr)=>{
-      tr+=`<div class="al ${pr.leave?'leave':(x.a.status==='tentative'?'tent':'')}${x.a.hrs*pph<36?' sh':''}" data-id="${x.a.id}" title="${esc(labelOf(pr)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${si*DW+1}px;width:${(sj-si+1)*DW-2}px;top:${PAD+x.y*pph}px;height:${Math.max(12,x.a.hrs*pph-2)}px;--c:${colorOf(pr)}"><span class="nm"${x.a.hrs*pph>=52?' style="white-space:normal"':''}>${x.a.hrs*pph>=52?barTall(pr):esc(labelOf(pr))}</span><small>${x.a.hrs}h/day${!pr.leave&&x.a.status==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
+      tr+=`<div class="al ${pr.leave?'leave':(x.a.status==='tentative'?'tent':'')}${x.a.hrs*pph<36?' sh':''}" data-id="${x.a.id}" title="${esc(barName(pr,p)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${si*DW+1}px;width:${(sj-si+1)*DW-2}px;top:${PAD+x.y*pph}px;height:${Math.max(12,x.a.hrs*pph-2)}px;--c:${colorOf(pr)}"><span class="nm"${x.a.hrs*pph>=52?' style="white-space:normal"':''}>${x.a.hrs*pph>=52?barTall(pr,p):esc(barName(pr,p))}</span><small>${x.a.hrs}h/day${!pr.leave&&x.a.status==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
     html+=`<div class="row" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><b>${esc(p.name)}</b><span>${esc(p.role||'')} · ${pct}% this week</span><div class="tags">${dayLabel(p)?'<em>'+esc(dayLabel(p))+'</em>':''}${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
   });
   if(!state.people.length)html+='<div class="empty">'+(db&&!synced?'Loading the shared plan…':'Add a team member in the sidebar to start planning.')+'</div>';
@@ -310,7 +326,7 @@ document.addEventListener('pointermove',e=>{
 });
 document.addEventListener('pointerup',e=>{
   if(!drag)return;
-  const d=drag;drag=null;if(ghost){ghost.remove();ghost=null}
+  const d=drag;drag=null;if(d&&d.moved)lastDragEnd=Date.now();if(ghost){ghost.remove();ghost=null}
   if(dirty){dirty=false;setTimeout(render,0)}
   if(d.type==='hrs'){if(d.moved&&d.hrs!=null){const al=state.allocs.find(x=>x.id===d.id);if(al&&al.hrs!==d.hrs){al.hrs=d.hrs;put('allocs',al)}}render();return}
   if(!d.moved){if(d.bar)openPop(d.id,e);else if(d.proj)openDetails(d.proj);return}
@@ -422,7 +438,7 @@ document.addEventListener('click',e=>{
   else if(x=t.closest('[data-eproj]'))openProject(x.dataset.eproj);
   else if(x=t.closest('[data-hd]')){if(atLeast('admin'))openHoliday(x.dataset.hd,e)}
   else if(x=t.closest('[data-edit]'))openPerson(x.dataset.edit);
-  else if(x=t.closest('[data-addp]')){const i=document.querySelector('[data-np="'+x.dataset.addp+'"]'),n=i.value.trim();if(!n)return;const own=x.dataset.addp==='_';if(own&&!atLeast('admin'))return;const p={id:uid(),name:n,clientId:own?'':x.dataset.addp,n:Date.now()};if(own)p.color=PALETTE[(state.projects.length*7)%PALETTE.length];state.projects.push(p);put('projects',p);render();if(own)openProject(p.id)}
+  else if(x=t.closest('[data-addp]')){const i=document.querySelector('[data-np="'+x.dataset.addp+'"]'),n=i.value.trim();const own=x.dataset.addp==='_';if(own&&!atLeast('admin'))return;if(!own){openNewProject(x.dataset.addp,n);i.value='';return}if(!n)return;const p={id:uid(),name:n,clientId:'',n:Date.now()};if(own)p.color=PALETTE[(state.projects.length*7)%PALETTE.length];state.projects.push(p);put('projects',p);render();if(own)openProject(p.id)}
 });
 document.getElementById('flt').oninput=e=>{filterQ=e.target.value.trim().toLowerCase();render()};
 function openProject(id){
@@ -533,6 +549,147 @@ function openLog(){
   o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
 }
 document.getElementById('act').onclick=openLog;
+/* ---------- presence, new project, click-to-add, reports ---------- */
+function showPresence(list){
+  const el=document.getElementById('pres');if(!el)return;
+  const ini=n=>String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'?';
+  const hue=id=>{let h=0;for(const ch of String(id))h=(h*31+ch.charCodeAt(0))%360;return h};
+  const me2=u=>session&&u.id===session.id;
+  el.innerHTML=list.slice(0,6).map(u=>`<i style="background:hsl(${hue(u.id)} 55% 42%);${me2(u)?'outline:2px solid var(--accent);':''}" title="${esc(u.name)}${me2(u)?' (you)':''}">${esc(ini(u.name))}</i>`).join('')+(list.length>6?`<i style="background:var(--mute)" title="${esc(list.slice(6).map(u=>u.name).join(', '))}">+${list.length-6}</i>`:'');
+  el.setAttribute('aria-label',list.length+' online: '+list.map(u=>u.name).join(', '));
+}
+function openNewProject(clientId,name){
+  const c=client(clientId);if(!c)return;
+  const opt=(v,l,cur)=>`<option value="${v}" ${v===cur?'selected':''}>${esc(l)}</option>`;
+  modal('New project for '+c.name,
+    `<label>Project name</label><input id="np-n" value="${esc(name||'')}"><label>Project code</label><input id="np-c"><label>Owner</label><select id="np-o">${opt('','Unassigned','')}${state.people.map(q=>opt(q.id,q.name,'')).join('')}</select><div class="two"><div><label>Stage</label><select id="np-s">${PSTAGES.map(x=>opt(x,x,'Planning')).join('')}</select></div><div><label>Billing</label><select id="np-b">${opt('b','Billable','b')}${opt('n','Non-billable','b')}</select></div></div><div class="two"><div><label>Start date</label><input type="date" id="np-st"></div><div><label>End date</label><input type="date" id="np-en"></div></div><label>Notes</label><textarea id="np-nt" rows="3"></textarea>`,
+    o=>{
+      const v=i=>o.querySelector(i).value;
+      let st=v('#np-st'),en=v('#np-en');if(st&&!en)en=st;if(en&&!st)st=en;if(st&&en&&en<st)[st,en]=[en,st];
+      const pr={id:uid(),name:v('#np-n').trim()||'New project',clientId,code:v('#np-c').trim(),ownerId:v('#np-o'),stage:v('#np-s'),billable:v('#np-b')==='b',notes:v('#np-nt').trim(),n:Date.now()};
+      if(st&&en){pr.start=st;pr.end=en}
+      state.projects.push(pr);put('projects',pr);render();openDetails(pr.id);
+    },null,null,o=>o.querySelector('#np-n').focus());
+}
+function openSlot(pid,idx,e){
+  closePop();
+  const person=state.people.find(x=>x.id===pid);if(!person)return;
+  const p=document.createElement('div');p.className='pop';p.style.width='290px';
+  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><div id="sl" class="sl"></div><p class="hint">Client projects keep one timeline for everyone, so a booking on an existing project appears on that project's dates.</p>`;
+  document.body.appendChild(p);
+  p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-430))+'px';
+  const draw=()=>{
+    const q=p.querySelector('#sq').value.trim().toLowerCase();
+    const match=pr=>!q||(labelOf(pr)+' '+(pr.code||'')).toLowerCase().includes(q);
+    const item=pr=>{const linked=isLinked(pr),taken=linked&&state.allocs.some(a=>a.person===pid&&a.proj===pr.id);
+      const sub=taken?'Already on this project':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):'Starts here');
+      return `<div class="si${taken?' dis':''}" data-p="${pr.id}"><i style="background:${pr.leave?'#9aa1b5':colorOf(pr)}"></i><span>${esc(unav(pr,person)?'Unavailable':pr.name)}<br><span class="hint">${sub}</span></span></div>`};
+    let html='';
+    for(const c of state.clients){const ps=state.projects.filter(x=>x.clientId===c.id&&match(x));if(ps.length)html+=`<div class="sh">${esc(c.name)}</div>`+ps.map(item).join('')}
+    const oth=state.projects.filter(x=>!client(x.clientId)&&match(x));if(oth.length)html+=`<div class="sh">Time off and other</div>`+oth.map(item).join('');
+    p.querySelector('#sl').innerHTML=html||'<p class="hint">No projects match.</p>';
+  };
+  draw();const sq=p.querySelector('#sq');sq.oninput=draw;sq.focus();
+  p.querySelector('#sl').onclick=ev=>{
+    const d=ev.target.closest('.si');if(!d||d.classList.contains('dis'))return;
+    const pr=proj(d.dataset.p);if(!pr)return;
+    const end=cols[addWork(idx,5)];
+    if(isLinked(pr)){if(!pr.start){pr.start=cols[idx];pr.end=end;put('projects',pr)}addAssignment(pid,pr.id)}
+    else{const n={id:uid(),person:pid,proj:pr.id,start:cols[idx],end,hrs:pr.leave?maxCap(person):4};state.allocs.push(n);put('allocs',n)}
+    closePop();render();
+  };
+}
+document.addEventListener('click',e=>{
+  if(!atLeast('manager')||Date.now()-lastDragEnd<400||!e.target.closest)return;
+  const tr=e.target.closest('.track');if(!tr||e.target.closest('.al'))return;
+  const r=tr.getBoundingClientRect(),idx=Math.floor((e.clientX-r.left)/DW);
+  const person=state.people.find(x=>x.id===tr.dataset.p);
+  if(!person||idx<0||idx>=cols.length||!capOn(person,idx))return;
+  openSlot(person.id,idx,e);
+});
+function reportRows(R){
+  const days=[];for(let d=parse(R.from);fmt(d)<=R.to;d.setDate(d.getDate()+1))days.push(fmt(d));
+  const rows=[];
+  for(const p of state.people){
+    const con=p.emp==='contractor',act=(p.stage||'active')==='active';
+    if(R.title&&(p.role||'')!==R.title)continue;
+    if(R.emp&&(con?'contractor':'permanent')!==R.emp)continue;
+    if(R.status==='active'&&!act)continue;if(R.status==='recruiting'&&act)continue;
+    const al=state.allocs.filter(a=>a.person===p.id).map(a=>({a,e:eff(a),pr:proj(a.proj)}));
+    const r={p,con,avail:0,cb:0,tb:0,cn:0,tn:0,lv:0,un:0};
+    for(const iso of days){
+      const cap=holMap[iso]?0:(Number(daysOf(p)[parse(iso).getDay()])||0);
+      if(!cap)continue;
+      r.avail+=cap;
+      for(const x of al){
+        if(!x.e.start||iso<x.e.start||iso>x.e.end)continue;
+        const h=Number(x.a.hrs)||0;
+        if(x.pr&&x.pr.leave){if(con)r.un+=h;else r.lv+=h;continue}
+        const bill=!!x.pr&&x.pr.billable!==false&&isLinked(x.pr),ten=x.a.status==='tentative';
+        r[(ten?'t':'c')+(bill?'b':'n')]+=h;
+      }
+    }
+    r.booked=r.cb+r.tb+r.cn+r.tn;
+    r.free=Math.max(0,r.avail-r.booked-r.lv-r.un);
+    r.util=r.avail?Math.round(r.booked/r.avail*100):0;
+    rows.push(r);
+  }
+  return rows;
+}
+function openReport(){
+  closeModal();closePop();
+  const o=document.createElement('div');o.className='ov-modal';document.body.appendChild(o);
+  const now=new Date(),ad=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+  const R={from:fmt(new Date(now.getFullYear(),now.getMonth(),1)),to:fmt(new Date(now.getFullYear(),now.getMonth()+1,0)),title:'',emp:'',status:''};
+  const titles=[...new Set(state.people.map(p=>p.role||'').filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  o.innerHTML=`<div class="dlg" style="width:min(1200px,96vw)"><h3>Capacity report</h3>
+   <div class="rf"><div><label for="rq">Quick range</label><select id="rq"><option value="month">This month</option><option value="week">This week</option><option value="nweek">Next week</option><option value="nmonth">Next month</option><option value="4w">Next 4 weeks</option><option value="3m">Next 3 months</option><option value="custom">Custom</option></select></div>
+   <div><label for="rf">From</label><input type="date" id="rf" value="${R.from}"></div><div><label for="rt">To</label><input type="date" id="rt" value="${R.to}"></div>
+   <div><label for="rr">Job title</label><select id="rr"><option value="">All titles</option>${titles.map(t=>`<option>${esc(t)}</option>`).join('')}</select></div>
+   <div><label for="re">Employment</label><select id="re"><option value="">Everyone</option><option value="permanent">Internal (permanent)</option><option value="contractor">Contractors</option></select></div>
+   <div><label for="rs">Recruitment</label><select id="rs"><option value="">All</option><option value="active">Active staff only</option><option value="recruiting">Still recruiting</option></select></div></div>
+   <div id="rc" class="cards"></div>
+   <div class="lg"><span><i style="background:var(--accent)"></i>Billable, confirmed</span><span><i style="background:color-mix(in srgb,var(--accent) 40%,var(--panel))"></i>Billable, tentative</span><span><i style="background:#868e96"></i>Non-billable, confirmed</span><span><i style="background:color-mix(in srgb,#868e96 40%,var(--panel))"></i>Non-billable, tentative</span><span><i style="background:repeating-linear-gradient(45deg,var(--line2) 0 2px,var(--line) 2px 4px)"></i>Leave / unavailable</span><span><i style="background:var(--line)"></i>Free</span></div>
+   <div id="rtab" style="overflow:auto;max-height:46vh"></div>
+   <p class="hint">Available hours exclude public holidays and each person's days off. Free = available minus booked, leave and unavailable hours. Contractors' time off is reported as Unavailable.</p>
+   <div class="r"><button id="rx">Download CSV</button><span class="sp"></span><button data-x>Close</button></div></div>`;
+  const q=s=>o.querySelector(s),f=n=>Math.round(n*10)/10;let rows=[];
+  const draw=()=>{
+    const a=q('#rf').value||R.from,b=q('#rt').value||R.to;R.from=a<=b?a:b;R.to=a<=b?b:a;
+    R.title=q('#rr').value;R.emp=q('#re').value;R.status=q('#rs').value;
+    rows=reportRows(R);
+    const T={avail:0,cb:0,tb:0,cn:0,tn:0,lv:0,un:0,free:0};rows.forEach(r=>{for(const k in T)T[k]+=r[k]});
+    const booked=T.cb+T.tb+T.cn+T.tn,bill=T.cb+T.tb,non=T.cn+T.tn,conf=T.cb+T.cn,ten=T.tb+T.tn;
+    const card=(l,v,sub)=>`<div class="card"><span class="hint">${l}</span><b>${v}</b><span class="hint">${sub||'&nbsp;'}</span></div>`;
+    q('#rc').innerHTML=card('Available',f(T.avail)+'h',rows.length+' people')+card('Booked',f(booked)+'h',T.avail?Math.round(booked/T.avail*100)+'% of available':'')+card('Billable',f(bill)+'h',f(non)+'h non-billable')+card('Confirmed',f(conf)+'h',f(ten)+'h tentative')+card('Leave',f(T.lv)+'h','permanent staff')+card('Unavailable',f(T.un)+'h','contractors')+card('Free',f(T.free)+'h','');
+    const seg=(h,tot,bg)=>`<i style="width:${(h/tot*100).toFixed(1)}%;background:${bg}"></i>`;
+    q('#rtab').innerHTML=`<table class="rt"><thead><tr><th>Name</th><th>Job title</th><th>Type</th><th>Available</th><th>Billable confirmed</th><th>Billable tentative</th><th>Non-billable confirmed</th><th>Non-billable tentative</th><th>Leave</th><th>Unavailable</th><th>Free</th><th>Booked %</th><th></th></tr></thead><tbody>${rows.map(r=>{
+      const tot=Math.max(r.avail,r.booked+r.lv+r.un)||1;
+      return `<tr><td>${esc(r.p.name)}</td><td>${esc(r.p.role||'')}</td><td>${r.con?'Contractor':'Permanent'}</td><td>${f(r.avail)}</td><td>${f(r.cb)}</td><td>${f(r.tb)}</td><td>${f(r.cn)}</td><td>${f(r.tn)}</td><td>${r.lv?f(r.lv):'\u2013'}</td><td>${r.un?f(r.un):'\u2013'}</td><td>${f(r.free)}</td><td class="${r.util>100?'over':''}">${r.util}%</td><td><div class="stk">${seg(r.cb,tot,'var(--accent)')}${seg(r.tb,tot,'color-mix(in srgb,var(--accent) 40%,var(--panel))')}${seg(r.cn,tot,'#868e96')}${seg(r.tn,tot,'color-mix(in srgb,#868e96 40%,var(--panel))')}${seg(r.lv+r.un,tot,'repeating-linear-gradient(45deg,var(--line2) 0 3px,var(--line) 3px 6px)')}</div></td></tr>`}).join('')||'<tr><td colspan="13" class="hint">No one matches these filters.</td></tr>'}</tbody><tfoot><tr><td>Total</td><td></td><td></td><td>${f(T.avail)}</td><td>${f(T.cb)}</td><td>${f(T.tb)}</td><td>${f(T.cn)}</td><td>${f(T.tn)}</td><td>${f(T.lv)}</td><td>${f(T.un)}</td><td>${f(T.free)}</td><td>${T.avail?Math.round(booked/T.avail*100):0}%</td><td></td></tr></tfoot></table>`;
+  };
+  const setRange=v=>{
+    const m=mondayOf(new Date()),t=new Date(),y=t.getFullYear(),mo=t.getMonth();let a,b;
+    if(v==='week'){a=m;b=ad(m,6)}else if(v==='nweek'){a=ad(m,7);b=ad(m,13)}
+    else if(v==='month'){a=new Date(y,mo,1);b=new Date(y,mo+1,0)}else if(v==='nmonth'){a=new Date(y,mo+1,1);b=new Date(y,mo+2,0)}
+    else if(v==='4w'){a=t;b=ad(t,27)}else if(v==='3m'){a=t;b=ad(t,90)}else return;
+    q('#rf').value=fmt(a);q('#rt').value=fmt(b);
+  };
+  o.addEventListener('change',e=>{
+    if(e.target.id==='rq')setRange(e.target.value);
+    else if(e.target.id==='rf'||e.target.id==='rt')q('#rq').value='custom';
+    draw();
+  });
+  q('#rx').onclick=()=>{
+    const head=['Name','Job title','Employment','Available h','Billable confirmed h','Billable tentative h','Non-billable confirmed h','Non-billable tentative h','Leave h','Unavailable h','Free h','Booked %'];
+    const lines=[head,...rows.map(r=>[r.p.name,r.p.role||'',r.con?'Contractor':'Permanent',f(r.avail),f(r.cb),f(r.tb),f(r.cn),f(r.tn),f(r.lv),f(r.un),f(r.free),r.util])];
+    const csv=lines.map(l=>l.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='capacity-report-'+R.from+'-to-'+R.to+'.csv';a.click();
+  };
+  q('[data-x]').onclick=closeModal;
+  o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
+  draw();
+}
+document.getElementById('rep').onclick=openReport;
 /* ---------- project details pane, assignments, board filter ---------- */
 function addAssignment(pid,projId){
   const pr=proj(projId);if(!pr||state.allocs.some(a=>a.person===pid&&a.proj===projId))return;
@@ -645,7 +802,7 @@ function openHoliday(iso,e){
   const x=p.querySelector('#hx');if(x)x.onclick=()=>{state.holidays=state.holidays.filter(y=>y.id!==iso);del('holidays',iso);closePop();render()};
 }
 /* ---------- row resizing (per viewer, saved in this browser) ---------- */
-const barTall=pr=>{const c=client(pr.clientId);return(c?'<small>'+esc(c.name)+'</small><br>':'')+'<b>'+esc(pr.name)+'</b>'};
+const barTall=(pr,p)=>{const c=client(pr.clientId);return(c?'<small>'+esc(c.name)+'</small><br>':'')+'<b>'+esc(unav(pr,p)?'Unavailable':pr.name)+'</b>'};
 let rh=null;
 document.addEventListener('pointerdown',e=>{const h=e.target.closest('.rh');if(!h)return;e.preventDefault();rh={id:h.dataset.rh,y:e.clientY,h:h.closest('.row').offsetHeight}});
 document.addEventListener('pointermove',e=>{if(!rh)return;rowH[rh.id]=Math.round(Math.max(44,Math.min(400,rh.h+e.clientY-rh.y)));render()});
@@ -672,7 +829,7 @@ function makeDB(){
   const fire=()=>subs.forEach(s=>s.cb({docs:docsOf(s.coll,s.o)}));
   const poll=async()=>{
     try{const j=await API('/api/data?rev='+rev);
-      if(j.changed){store=j.data;rev=j.rev;loaded=true;fire()}else if(!loaded){loaded=true;fire()}}
+      if(j.online)showPresence(j.online);if(j.changed){store=j.data;rev=j.rev;loaded=true;fire()}else if(!loaded){loaded=true;fire()}}
     catch(e){subs.forEach(s=>s.err&&s.err(e))}
   };
   const soon=()=>{clearTimeout(timer);timer=setTimeout(poll,500)};
