@@ -118,7 +118,17 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
 .lg{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin:8px 0}.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
 .selr{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 18%,transparent);border:2px solid var(--accent);border-radius:6px;pointer-events:none;z-index:14}
 .selr span{position:absolute;top:4px;left:6px;font-size:11px;font-weight:600;color:var(--accent);white-space:nowrap}
+
+.icon-button{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:6px;flex:none}
+.icon-button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.cg>.chip,.cg>.add{margin-left:18px}
+#client-sort{width:100%;margin-bottom:10px;font-size:12px}
+.team-heading{display:flex;align-items:center;gap:6px}
+.team-heading button{display:flex;align-items:center;gap:6px;border:0;background:none;padding:0;color:inherit;font-weight:inherit;text-align:left;width:100%}
 </style>
+<script>
+try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}
+</script>
 </head>
 <body>
 <header>
@@ -127,15 +137,19 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
   <span class="hint">Drag projects onto a row. Drag bars to move; pull the edges to resize. Click, or click and drag across empty slots, to add a project.</span>
   <span class="sp"></span>
   <button id="rep">Reports</button><select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><input id="flt" placeholder="Filter team by name, title or skill" aria-label="Filter team" style="width:250px"><button id="act" hidden>Activity</button><button id="imp" hidden>Import - Float</button><button id="lo" hidden onclick="doLogout()">Sign out</button><button id="usr" hidden>Users</button><span id="status" class="hint">Connecting…</span><span id="pres" class="pres"></span>
+<button id="theme-toggle" class="icon-button" aria-label="Switch colour mode" title="Switch colour mode"></button>
 </header>
 <main>
   <aside>
     <h2 style="display:flex;justify-content:space-between;align-items:center">Clients and projects<span><button class="ed" id="exa" title="Expand all" aria-label="Expand all">▾</button><button class="ed" id="cla" title="Collapse all" aria-label="Collapse all">▸</button></span></h2>
+    <select id="client-sort" aria-label="Sort clients"><option value="custom">Clients: added order</option><option value="name">Clients: A–Z</option><option value="name-desc">Clients: Z–A</option></select>
     <div id="projs"></div>
     <div class="add"><input id="nc" placeholder="New client" aria-label="New client name"><button id="addc">Add</button></div>
-    <h2>Team (click a name in the chart to edit)</h2>
+    <h2 class="team-heading"><button id="team-toggle" aria-expanded="true" aria-controls="team-list"><span id="team-chevron" aria-hidden="true">▾</span>Team</button></h2>
+    <div id="team-list">
     <div id="ppl"></div>
     <div class="add"><input id="nm" placeholder="New person" aria-label="New person name"><button id="addm">Add</button></div>
+    </div>
   </aside>
   <div id="scroller"><div id="content"></div></div>
 </main>
@@ -172,6 +186,8 @@ let rowH={};try{rowH=JSON.parse(localStorage.getItem('planner-rowh')||'{}')}catc
 const saveRowH=()=>{try{localStorage.setItem('planner-rowh',JSON.stringify(rowH))}catch(e){}};
 const ls={get(k,d){try{const v=localStorage.getItem('planner-'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('planner-'+k,JSON.stringify(v))}catch(e){}}};
 let sortBy=ls.get('sort','custom'),collapsed=ls.get('collapsed',{}),paneHidden=ls.get('pane',false),skillSel=new Set();
+let clientSort=ls.get('client-sort','custom'),teamCollapsed=ls.get('team-collapsed',false);
+const sortedClients=()=>{const list=[...state.clients];if(clientSort==='name'||clientSort==='name-desc')list.sort((a,b)=>(clientSort==='name-desc'?-1:1)*a.name.localeCompare(b.name,undefined,{sensitivity:'base',numeric:true}));return list};
 let myRole=null,myId=null,me=null,isOwnerFlag=false,usersReady=false,bootWrote=false,usersDraw=null;
 const BOOT=[];
 const rank={contributor:1,manager:2,admin:3};
@@ -281,7 +297,7 @@ function render(){
   // sidebar
   {const chip=p=>`<div class="chip ${p.leave?'leave':''}" data-proj="${p.id}"><i style="background:${p.leave?'':colorOf(p)}"></i><span class="cn">${esc(p.name)}</span><button class="ed" data-eproj="${p.id}" aria-label="Edit ${esc(p.name)}">✎</button></div>`;
   const other=state.projects.filter(p=>!client(p.clientId));
-  document.getElementById('projs').innerHTML=state.clients.map(c=>`<div class="cg"><div class="ch"><button class="tg" data-tg="${c.id}" aria-expanded="${!collapsed[c.id]}" aria-label="${collapsed[c.id]?'Expand':'Collapse'} ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><b>${esc(c.name)}</b><span class="hint">${state.projects.filter(p=>p.clientId===c.id).length}</span><button data-eclient="${c.id}">Edit</button></div>${collapsed[c.id]?'':state.projects.filter(p=>p.clientId===c.id).map(chip).join('')}<div class="add" ${collapsed[c.id]?'hidden':''}><input data-np="${c.id}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${c.id}">Add</button></div></div>`).join('')+`<div class="cg"><div class="ch"><button class="tg" data-tg="_" aria-expanded="${!collapsed._}" aria-label="${collapsed._?'Expand':'Collapse'} time off and other">${collapsed._?'▸':'▾'}</button><b>Time off and other</b><span class="hint">${other.length}</span></div>${collapsed._?'':other.map(chip).join('')}<div class="add adm" ${collapsed._?'hidden':''}><input data-np="_" placeholder="New item (sick, training...)" aria-label="New time off or other item"><button data-addp="_">Add</button></div></div>`;}
+  document.getElementById('projs').innerHTML=sortedClients().map(c=>`<div class="cg"><div class="ch"><button class="tg" data-tg="${c.id}" aria-expanded="${!collapsed[c.id]}" aria-label="${collapsed[c.id]?'Expand':'Collapse'} ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><b>${esc(c.name)}</b><span class="hint">${state.projects.filter(p=>p.clientId===c.id).length}</span><button data-eclient="${c.id}">Edit</button></div>${collapsed[c.id]?'':state.projects.filter(p=>p.clientId===c.id).map(chip).join('')}<div class="add" ${collapsed[c.id]?'hidden':''}><input data-np="${c.id}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${c.id}">Add</button></div></div>`).join('')+`<div class="cg"><div class="ch"><button class="tg" data-tg="_" aria-expanded="${!collapsed._}" aria-label="${collapsed._?'Expand':'Collapse'} time off and other">${collapsed._?'▸':'▾'}</button><b>Time off and other</b><span class="hint">${other.length}</span></div>${collapsed._?'':other.map(chip).join('')}<div class="add adm" ${collapsed._?'hidden':''}><input data-np="_" placeholder="New item (sick, training...)" aria-label="New time off or other item"><button data-addp="_">Add</button></div></div>`;}
   document.getElementById('ppl').innerHTML=state.people.map(p=>`<div class="hint" style="display:flex;justify-content:space-between;padding:2px 0">${esc(p.name)}<button data-rm="${p.id}" class="danger" style="padding:0 6px" aria-label="Remove ${esc(p.name)}">×</button></div>`).join('');
 }
 
@@ -352,7 +368,7 @@ function openPop(id,e){
   const ownHtml=a.own?`<div class="act"><span class="hint">Own dates: ${fmtD(a.start)} \u2013 ${fmtD(a.end)}</span><a id="pfw" role="button" tabindex="0">Follow project dates</a></div>`:'';
   const assignHtml=linked?`<label for="pa">Assigned to</label><div class="as" id="as">${team.filter((b,i)=>team.findIndex(c=>c.person===b.person)===i).map(b=>{const q=state.people.find(x=>x.id===b.person);return `<span class="ch2">${esc(q?q.name:'Unknown')}<b data-rm2="${b.id}" role="button" aria-label="Remove from project">\u00d7</b></span>`}).join('')}<input id="pa" placeholder="${team.length?'Add people':'Add people to this project'}" autocomplete="off"></div><div id="sg" class="sg" hidden></div>`:'';
   const opt=x=>`<option value="${x.id}" ${x.id===a.proj?'selected':''}>${esc(x.name)}</option>`;
-  const optg=state.clients.map(c=>`<optgroup label="${esc(c.name)}">${state.projects.filter(x=>x.clientId===c.id).map(opt).join('')}</optgroup>`).join('')+state.projects.filter(x=>!client(x.clientId)).map(opt).join('');
+  const optg=sortedClients().map(c=>`<optgroup label="${esc(c.name)}">${state.projects.filter(x=>x.clientId===c.id).map(opt).join('')}</optgroup>`).join('')+state.projects.filter(x=>!client(x.clientId)).map(opt).join('');
   p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${ownHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
   document.body.appendChild(p);
   p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-520))+'px';
@@ -431,7 +447,7 @@ function openClient(id){
 }
 function openProjectOld(id){
   const p=state.projects.find(x=>x.id===id);if(!p)return;
-  modal('Edit project',`<label>Name</label><input id="f-n" value="${esc(p.name)}">`+(p.leave?'':`<label>Client</label><select id="f-c"><option value="">No client</option>${state.clients.map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`),
+  modal('Edit project',`<label>Name</label><input id="f-n" value="${esc(p.name)}">`+(p.leave?'':`<label>Client</label><select id="f-c"><option value="">No client</option>${sortedClients().map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`),
     o=>{p.name=o.querySelector('#f-n').value.trim()||p.name;const s=o.querySelector('#f-c');if(s)p.clientId=s.value;put('projects',p);render()},
     p.leave?null:()=>{dropProject(id);render()},'Delete project and its bookings');
 }
@@ -448,7 +464,7 @@ document.getElementById('flt').oninput=e=>{filterQ=e.target.value.trim().toLower
 function openProject(id){
   const p=state.projects.find(x=>x.id===id);if(!p)return;
   const built=p.id==='lv';let col=p.color||'#5c6370';
-  const extra=built?'':`<label>Client</label><select id="f-c"><option value="">No client</option>${state.clients.map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select><label>Colour (used when there is no client)</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="f-l" ${p.leave?'checked':''} style="width:auto"> Shows as time off (hatched, not counted as work)</label>`;
+  const extra=built?'':`<label>Client</label><select id="f-c"><option value="">No client</option>${sortedClients().map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select><label>Colour (used when there is no client)</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="f-l" ${p.leave?'checked':''} style="width:auto"> Shows as time off (hatched, not counted as work)</label>`;
   modal('Edit project',`<label>Name</label><input id="f-n" value="${esc(p.name)}">${extra}`,
     o=>{p.name=o.querySelector('#f-n').value.trim()||p.name;const s=o.querySelector('#f-c');if(s){p.clientId=s.value;p.leave=o.querySelector('#f-l').checked;p.color=col}put('projects',p);render()},
     built?null:()=>{dropProject(id);render()},'Delete item and its bookings',
@@ -460,6 +476,20 @@ document.getElementById('exa').onclick=()=>{collapsed={};ls.set('collapsed',coll
 document.getElementById('cla').onclick=()=>{state.clients.forEach(c=>collapsed[c.id]=true);collapsed._=true;ls.set('collapsed',collapsed);render()};
 const applyPane=()=>{document.body.classList.toggle('nopane',paneHidden);document.getElementById('pane').textContent=paneHidden?'Show projects':'Hide projects'};
 document.getElementById('pane').onclick=()=>{paneHidden=!paneHidden;ls.set('pane',paneHidden);applyPane()};applyPane();
+const themeButton=document.getElementById('theme-toggle');
+const systemTheme=window.matchMedia('(prefers-color-scheme: dark)');
+const isDark=()=>document.documentElement.dataset.theme?document.documentElement.dataset.theme==='dark':systemTheme.matches;
+function updateThemeButton(){
+  const dark=isDark(),label=dark?'Switch to day mode':'Switch to night mode';
+  themeButton.title=label;themeButton.setAttribute('aria-label',label);
+  themeButton.innerHTML=dark?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/></svg>';
+}
+themeButton.onclick=()=>{const theme=isDark()?'light':'dark';document.documentElement.dataset.theme=theme;ls.set('theme',theme);updateThemeButton()};
+systemTheme.addEventListener('change',updateThemeButton);updateThemeButton();
+const clientSortControl=document.getElementById('client-sort');clientSortControl.value=clientSort;
+clientSortControl.onchange=()=>{clientSort=clientSortControl.value;ls.set('client-sort',clientSort);render()};
+function applyTeamCollapsed(){document.getElementById('team-list').hidden=teamCollapsed;document.getElementById('team-toggle').setAttribute('aria-expanded',String(!teamCollapsed));document.getElementById('team-chevron').textContent=teamCollapsed?'▸':'▾'}
+document.getElementById('team-toggle').onclick=()=>{teamCollapsed=!teamCollapsed;ls.set('team-collapsed',teamCollapsed);applyTeamCollapsed()};applyTeamCollapsed();
 const srt=document.getElementById('srt');srt.value=sortBy;srt.onchange=()=>{sortBy=srt.value;ls.set('sort',sortBy);render()};
 const updSkillBtn=()=>{document.getElementById('skb').textContent=skillSel.size?'Skills ('+skillSel.size+')':'Skills'};
 function openSkills(btn){
@@ -807,7 +837,7 @@ function buildFloatOps(P,o){
   for(const p of P.people){const k=p.name.toLowerCase();if(pid.has(k))continue;
     const id='fp_'+slug(p.name)+'_'+h36(p.name);
     set('people',id,{name:p.name,role:p.role||'',cap:8,emp:'permanent',stage:'active',skills:p.dept?[p.dept]:[],n:n++});pid.set(k,id);st.newPeople++}
-  const cid=new Map(state.clients.map(c=>[c.name.trim().toLowerCase(),c.id]));
+  const cid=new Map(sortedClients().map(c=>[c.name.trim().toLowerCase(),c.id]));
   const clientId=name=>{const k=name.toLowerCase();if(cid.has(k))return cid.get(k);
     const id='fc_'+slug(name)+'_'+h36(name);set('clients',id,{name,color:PALETTE[((state.clients.length+st.newClients)*5)%PALETTE.length],n:n++});cid.set(k,id);st.newClients++;return id};
   const span=new Map();
@@ -891,7 +921,7 @@ function addAssignment(pid,projId){
 function fillPf(){
   const s=document.getElementById('pf');if(!s)return;
   const other=state.projects.filter(p=>!client(p.clientId));
-  s.innerHTML='<option value="">All clients and projects</option>'+state.clients.map(c=>`<optgroup label="${esc(c.name)}"><option value="c:${c.id}">All of ${esc(c.name)}</option>${state.projects.filter(p=>p.clientId===c.id).map(p=>`<option value="p:${p.id}">${esc(p.name)}</option>`).join('')}</optgroup>`).join('')+(other.length?`<optgroup label="Time off and other">${other.map(p=>`<option value="p:${p.id}">${esc(p.name)}</option>`).join('')}</optgroup>`:'');
+  s.innerHTML='<option value="">All clients and projects</option>'+sortedClients().map(c=>`<optgroup label="${esc(c.name)}"><option value="c:${c.id}">All of ${esc(c.name)}</option>${state.projects.filter(p=>p.clientId===c.id).map(p=>`<option value="p:${p.id}">${esc(p.name)}</option>`).join('')}</optgroup>`).join('')+(other.length?`<optgroup label="Time off and other">${other.map(p=>`<option value="p:${p.id}">${esc(p.name)}</option>`).join('')}</optgroup>`:'');
   s.value=pf;if(s.value!==pf){pf='';s.value=''}
 }
 const PSTAGES=['Proposal','Planning','Active','On hold','Complete'];
