@@ -167,6 +167,7 @@ body.zoomed-out .al{font-size:14px}body.zoomed-out .al small{font-size:12px}body
 .work-days{margin-top:12px;border:1px solid var(--line2);border-radius:6px;padding:8px}.work-days summary{cursor:pointer;color:var(--mute);font-size:12px}
 
 .track .al{margin:0;box-sizing:border-box}
+body.delete-bookings .track,body.delete-bookings .track *{cursor:crosshair!important}body.delete-bookings #delete-mode-note{display:inline!important}.booking-menu{position:fixed;z-index:100;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:6px;box-shadow:0 6px 20px #0003;display:flex;flex-direction:column;gap:4px;min-width:180px}.booking-menu button{text-align:left}.booking-menu .hint{padding:3px 6px}
 body[data-role=contributor] .client-name[data-eclient]{display:block!important;cursor:default}
 .al{background:var(--bar-bg,var(--c));color:var(--bar-ink,#fff)}
 .al.tent{background:var(--bar-bg);color:var(--bar-ink)}
@@ -373,6 +374,15 @@ function render(){
 
 /* ---------- drag and drop ---------- */
 const sc=document.getElementById('scroller');
+let deleteBookingMode=false;
+function closeBookingMenu(){document.querySelector('.booking-menu')?.remove()}
+function setDeleteBookingMode(on){deleteBookingMode=on;document.body.classList.toggle('delete-bookings',on);let note=document.getElementById('delete-mode-note');if(!note){note=document.createElement('span');note.id='delete-mode-note';note.className='hint';note.style.display='none';note.textContent='Delete mode: click bookings to delete. Right-click to exit.';document.querySelector('header').appendChild(note)}note.style.display=on?'inline':'none';closeBookingMenu()}
+function deleteBooking(id){if(readOnly||!atLeast('manager'))return;const a=state.allocs.find(x=>x.id===id);if(!a)return;state.allocs=state.allocs.filter(x=>x.id!==id);del('allocs',id);closePop();render()}
+function splitBooking(id,date){if(readOnly||!atLeast('manager'))return;const a=state.allocs.find(x=>x.id===id);if(!a)return;const dates=eff(a);if(!date||date<=dates.start||date>dates.end)return;const right={...copyEdit(a),id:uid(),start:date,end:dates.end,own:true};a.start=dates.start;a.end=addDays(date,-1);a.own=true;put('allocs',a);state.allocs.push(right);put('allocs',right);closeBookingMenu();closePop();render()}
+document.addEventListener('contextmenu',e=>{if(deleteBookingMode){e.preventDefault();e.stopImmediatePropagation();setDeleteBookingMode(false);return}const bar=e.target.closest('.track .al');if(!bar){closeBookingMenu();return}if(readOnly||!atLeast('manager'))return;e.preventDefault();closeBookingMenu();closePop();const a=state.allocs.find(x=>x.id===bar.dataset.id);if(!a)return;const track=bar.closest('.track'),idx=Math.floor((e.clientX-track.getBoundingClientRect().left)/DW),date=cols[idx],dates=eff(a),canSplit=date&&date>dates.start&&date<=dates.end;const menu=document.createElement('div');menu.className='booking-menu';menu.setAttribute('role','menu');menu.innerHTML=`<span class="hint">${esc(proj(a.proj)?.name||'Booking')}</span><button type="button" role="menuitem" data-split-booking ${canSplit?'':'disabled'}>Split${date?' at '+esc(fmtD(date)):''}</button><button type="button" role="menuitem" class="danger" data-delete-booking>Delete</button>`;document.body.appendChild(menu);menu.style.left=Math.max(8,Math.min(e.clientX,innerWidth-menu.offsetWidth-8))+'px';menu.style.top=Math.max(8,Math.min(e.clientY,innerHeight-menu.offsetHeight-8))+'px';menu.querySelector('[data-split-booking]').onclick=()=>splitBooking(a.id,date);menu.querySelector('[data-delete-booking]').onclick=()=>{setDeleteBookingMode(true);deleteBooking(a.id)};menu.querySelector('button:not([disabled])')?.focus()},true);
+document.addEventListener('pointerdown',e=>{if(e.button!==0)return;if(deleteBookingMode&&e.target.closest('#scroller')){e.preventDefault();e.stopImmediatePropagation();return}if(!e.target.closest('.booking-menu'))closeBookingMenu()},true);
+document.addEventListener('click',e=>{if(!deleteBookingMode||!e.target.closest('#scroller'))return;e.preventDefault();e.stopImmediatePropagation();const bar=e.target.closest('.al');if(bar)deleteBooking(bar.dataset.id)},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeBookingMenu();if(deleteBookingMode)setDeleteBookingMode(false)}});
 let drag=null,ghost=null;
 function firstTrack(){return document.querySelector('.track')}
 function target(e){
