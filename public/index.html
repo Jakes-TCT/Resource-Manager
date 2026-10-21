@@ -121,10 +121,30 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
 
 .icon-button{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:6px;flex:none}
 .icon-button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.cg>.chip,.cg>.add{margin-left:18px}
+.cg>.chip,.cg>.add{margin-left:32px}
 #client-sort{width:100%;margin-bottom:10px;font-size:12px}
 .team-heading{display:flex;align-items:center;gap:6px}
 .team-heading button{display:flex;align-items:center;gap:6px;border:0;background:none;padding:0;color:inherit;font-weight:inherit;text-align:left;width:100%}
+
+#projects-pane{width:var(--pane-width,250px)}
+#pane-resizer{width:7px;flex:none;cursor:col-resize;touch-action:none;background:var(--line);position:relative}
+#pane-resizer:hover,#pane-resizer:focus-visible{background:var(--accent)}
+.nopane #pane-resizer{display:none}
+body.resizing-pane{cursor:col-resize;user-select:none}
+#settings{position:relative;flex:none}
+#settings summary{cursor:pointer;border:1px solid var(--line2);border-radius:6px;padding:5px 10px;list-style:none}
+#settings summary::-webkit-details-marker{display:none}
+#settings[open] summary{border-color:var(--accent)}
+#settings nav{position:absolute;top:calc(100% + 6px);left:0;width:185px;padding:6px;display:flex;flex-direction:column;gap:4px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;box-shadow:0 8px 24px #0003;z-index:80}
+#settings nav button{text-align:left;width:100%}
+.team-role{margin:12px 0 5px;font-size:12px;font-weight:600;color:var(--mute)}
+.team-member{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 0 3px 14px}
+.team-member span{min-width:0;overflow-wrap:anywhere}
+
+#projs .inactive>.ch,#projs .chip.inactive,#projs .cg.inactive>.chip{color:var(--mute);background:var(--bg)}
+#projs .inactive>.ch i,#projs .chip.inactive i,#projs .cg.inactive>.chip i{background:var(--mute)!important}
+#projs .inactive>.ch b,#projs .chip.inactive .cn,#projs .cg.inactive>.chip .cn{color:var(--mute)}
+.item-status{font-size:10px;font-weight:400;color:var(--mute);white-space:nowrap}
 </style>
 <script>
 try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}
@@ -132,15 +152,16 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
 </head>
 <body>
 <header>
+  <details id="settings"><summary>Settings</summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button></nav></details>
   <h1>Capacity planner</h1>
   <button id="pane">Hide projects</button><button id="today">Today</button>
   <span class="hint">Drag projects onto a row. Drag bars to move; pull the edges to resize. Click, or click and drag across empty slots, to add a project.</span>
   <span class="sp"></span>
-  <button id="rep">Reports</button><select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><input id="flt" placeholder="Filter team by name, title or skill" aria-label="Filter team" style="width:250px"><button id="act" hidden>Activity</button><button id="imp" hidden>Import - Float</button><button id="lo" hidden onclick="doLogout()">Sign out</button><button id="usr" hidden>Users</button><span id="status" class="hint">Connecting…</span><span id="pres" class="pres"></span>
+  <select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><input id="flt" placeholder="Filter team by name, title or skill" aria-label="Filter team" style="width:250px"><button id="act" hidden>Activity</button><span id="status" class="hint">Connecting…</span><span id="pres" class="pres"></span>
 <button id="theme-toggle" class="icon-button" aria-label="Switch colour mode" title="Switch colour mode"></button>
 </header>
 <main>
-  <aside>
+  <aside id="projects-pane">
     <h2 style="display:flex;justify-content:space-between;align-items:center">Clients and projects<span><button class="ed" id="exa" title="Expand all" aria-label="Expand all">▾</button><button class="ed" id="cla" title="Collapse all" aria-label="Collapse all">▸</button></span></h2>
     <select id="client-sort" aria-label="Sort clients"><option value="custom">Clients: added order</option><option value="name">Clients: A–Z</option><option value="name-desc">Clients: Z–A</option></select>
     <div id="projs"></div>
@@ -151,6 +172,7 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
     <div class="add"><input id="nm" placeholder="New person" aria-label="New person name"><button id="addm">Add</button></div>
     </div>
   </aside>
+  <div id="pane-resizer" role="separator" aria-label="Resize projects pane" aria-orientation="vertical" aria-controls="projects-pane" tabindex="0"></div>
   <div id="scroller"><div id="content"></div></div>
 </main>
 <script>
@@ -258,6 +280,17 @@ function ago(t){
   const mo=Math.round(d/30);return 'about '+mo+(mo===1?' month':' months')+' ago';
 }
 
+function teamGroups(){
+  const groups=new Map();
+  for(const person of state.people){
+    const role=(person.role||'').trim();
+    const key=role.toLowerCase().replace(/\s+/g,' ');
+    const aliases={'solution architect':'Solutions Architects','solutions architect':'Solutions Architects','solution architects':'Solutions Architects','solutions architects':'Solutions Architects','delivery manager':'Delivery Managers','delivery managers':'Delivery Managers','developer':'Developers','developers':'Developers','business analyst':'Business Analysts','business analysts':'Business Analysts'};
+    const label=aliases[key]||role||'No role assigned';
+    const groupKey=label.toLowerCase();if(!groups.has(groupKey))groups.set(groupKey,{label,people:[]});groups.get(groupKey).people.push(person);
+  }
+  return [...groups.values()].sort((a,b)=>a.label==='No role assigned'?1:b.label==='No role assigned'?-1:a.label.localeCompare(b.label)).map(g=>[g.label,g.people.sort((a,b)=>a.name.localeCompare(b.name))]);
+}
 function render(){
   sortAll();buildCols();holMap={};state.holidays.forEach(h=>holMap[h.id]=h.name||'Public holiday');offA=cols.map(c=>{const g=parse(c).getDay();return g===0||g===6?1:(holMap[c]?2:0)});wdA=cols.map(c=>parse(c).getDay());
   const W=cols.length*DW, el=document.getElementById('content');
@@ -295,10 +328,10 @@ function render(){
   el.innerHTML=html;
   fillPf();{const dpn=document.getElementById('dpane');if(dpn&&!dpn.contains(document.activeElement))drawDetails()}
   // sidebar
-  {const chip=p=>`<div class="chip ${p.leave?'leave':''}" data-proj="${p.id}"><i style="background:${p.leave?'':colorOf(p)}"></i><span class="cn">${esc(p.name)}</span><button class="ed" data-eproj="${p.id}" aria-label="Edit ${esc(p.name)}">✎</button></div>`;
+  {const chip=p=>`<div class="chip ${p.leave?'leave':''} ${p.status==='inactive'?'inactive':''}" title="${esc(p.status==='inactive'?'Inactive':p.status==='complete'?'Complete':'Active')}" data-proj="${p.id}"><i style="background:${p.leave?'':colorOf(p)}"></i><span class="cn">${esc(p.name)}</span><button class="ed" data-eproj="${p.id}" aria-label="Edit ${esc(p.name)}">✎</button></div>`;
   const other=state.projects.filter(p=>!client(p.clientId));
-  document.getElementById('projs').innerHTML=sortedClients().map(c=>`<div class="cg"><div class="ch"><button class="tg" data-tg="${c.id}" aria-expanded="${!collapsed[c.id]}" aria-label="${collapsed[c.id]?'Expand':'Collapse'} ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><b>${esc(c.name)}</b><span class="hint">${state.projects.filter(p=>p.clientId===c.id).length}</span><button data-eclient="${c.id}">Edit</button></div>${collapsed[c.id]?'':state.projects.filter(p=>p.clientId===c.id).map(chip).join('')}<div class="add" ${collapsed[c.id]?'hidden':''}><input data-np="${c.id}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${c.id}">Add</button></div></div>`).join('')+`<div class="cg"><div class="ch"><button class="tg" data-tg="_" aria-expanded="${!collapsed._}" aria-label="${collapsed._?'Expand':'Collapse'} time off and other">${collapsed._?'▸':'▾'}</button><b>Time off and other</b><span class="hint">${other.length}</span></div>${collapsed._?'':other.map(chip).join('')}<div class="add adm" ${collapsed._?'hidden':''}><input data-np="_" placeholder="New item (sick, training...)" aria-label="New time off or other item"><button data-addp="_">Add</button></div></div>`;}
-  document.getElementById('ppl').innerHTML=state.people.map(p=>`<div class="hint" style="display:flex;justify-content:space-between;padding:2px 0">${esc(p.name)}<button data-rm="${p.id}" class="danger" style="padding:0 6px" aria-label="Remove ${esc(p.name)}">×</button></div>`).join('');
+  document.getElementById('projs').innerHTML=sortedClients().map(c=>`<div class="cg ${c.status==='inactive'?'inactive':''}"><div class="ch" title="${c.status==='inactive'?'Inactive':'Active'}"><button class="tg" data-tg="${c.id}" aria-expanded="${!collapsed[c.id]}" aria-label="${collapsed[c.id]?'Expand':'Collapse'} ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><b>${esc(c.name)}</b><span class="hint">${state.projects.filter(p=>p.clientId===c.id).length}</span><button data-eclient="${c.id}">Edit</button></div>${collapsed[c.id]?'':state.projects.filter(p=>p.clientId===c.id).map(chip).join('')}<div class="add" ${collapsed[c.id]?'hidden':''}><input data-np="${c.id}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${c.id}">Add</button></div></div>`).join('')+`<div class="cg"><div class="ch"><button class="tg" data-tg="_" aria-expanded="${!collapsed._}" aria-label="${collapsed._?'Expand':'Collapse'} time off and other">${collapsed._?'▸':'▾'}</button><b>Time off and other</b><span class="hint">${other.length}</span></div>${collapsed._?'':other.map(chip).join('')}<div class="add adm" ${collapsed._?'hidden':''}><input data-np="_" placeholder="New item (sick, training...)" aria-label="New time off or other item"><button data-addp="_">Add</button></div></div>`;}
+  document.getElementById('ppl').innerHTML=teamGroups().map(([role,people])=>`<section><h3 class="team-role">${esc(role)}</h3>${people.map(p=>`<div class="hint team-member"><span>${esc(p.name)}</span><button data-rm="${p.id}" class="danger" style="padding:0 6px" aria-label="Remove ${esc(p.name)}">&times;</button></div>`).join('')}</section>`).join('');
 }
 
 /* ---------- drag and drop ---------- */
@@ -438,10 +471,14 @@ function openPerson(id){
       inp.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();addTag()}});
       box.addEventListener('click',e=>{const a=e.target.closest('[data-i]');if(a){sk.splice(+a.dataset.i,1);draw()}});draw()});
 }
+function statusField(item,project=false){
+  const options=project?[['active','Active'],['inactive','Inactive'],['complete','Complete']]:[['active','Active'],['inactive','Inactive']];
+  return '<label for="f-status">Status</label><select id="f-status">'+options.map(([value,label])=>`<option value="${value}" ${(item.status||'active')===value?'selected':''}>${label}</option>`).join('')+'</select>';
+}
 function openClient(id){
   const c=client(id);if(!c)return;let col=c.color;
-  modal('Edit client',`<label>Name</label><input id="f-n" value="${esc(c.name)}"><label>Colour</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label>Custom colour</label><input type="color" id="f-col" value="${/^#[0-9a-f]{6}$/i.test(col)?col:'#5c6370'}" style="height:34px;padding:2px">`,
-    o=>{c.name=o.querySelector('#f-n').value.trim()||c.name;c.color=col;put('clients',c);render()},
+  modal('Edit client',`<label>Name</label><input id="f-n" value="${esc(c.name)}">${statusField(c)}<label>Colour</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label>Custom colour</label><input type="color" id="f-col" value="${/^#[0-9a-f]{6}$/i.test(col)?col:'#5c6370'}" style="height:34px;padding:2px">`,
+    o=>{c.name=o.querySelector('#f-n').value.trim()||c.name;c.color=col;c.status=o.querySelector('#f-status').value;put('clients',c);render()},
     ()=>{state.projects.filter(p=>p.clientId===id).forEach(p=>dropProject(p.id));state.clients=state.clients.filter(x=>x.id!==id);del('clients',id);render()},'Delete client and its projects',
     o=>{const ci=o.querySelector('#f-col');o.querySelector('.sw').onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;col=b.dataset.c;ci.value=col;o.querySelectorAll('.sw button').forEach(x=>x.classList.toggle('on',x===b))};ci.oninput=()=>{col=ci.value;o.querySelectorAll('.sw button').forEach(x=>x.classList.toggle('on',x.dataset.c===col))}});
 }
@@ -465,8 +502,8 @@ function openProject(id){
   const p=state.projects.find(x=>x.id===id);if(!p)return;
   const built=p.id==='lv';let col=p.color||'#5c6370';
   const extra=built?'':`<label>Client</label><select id="f-c"><option value="">No client</option>${sortedClients().map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select><label>Colour (used when there is no client)</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="f-l" ${p.leave?'checked':''} style="width:auto"> Shows as time off (hatched, not counted as work)</label>`;
-  modal('Edit project',`<label>Name</label><input id="f-n" value="${esc(p.name)}">${extra}`,
-    o=>{p.name=o.querySelector('#f-n').value.trim()||p.name;const s=o.querySelector('#f-c');if(s){p.clientId=s.value;p.leave=o.querySelector('#f-l').checked;p.color=col}put('projects',p);render()},
+  modal('Edit project',`<label>Name</label><input id="f-n" value="${esc(p.name)}">${statusField(p,true)}${extra}`,
+    o=>{p.name=o.querySelector('#f-n').value.trim()||p.name;p.status=o.querySelector('#f-status').value;const s=o.querySelector('#f-c');if(s){p.clientId=s.value;p.leave=o.querySelector('#f-l').checked;p.color=col}put('projects',p);render()},
     built?null:()=>{dropProject(id);render()},'Delete item and its bookings',
     o=>{const sw=o.querySelector('.sw');if(sw)sw.onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;col=b.dataset.c;sw.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))}});
 }
@@ -476,6 +513,20 @@ document.getElementById('exa').onclick=()=>{collapsed={};ls.set('collapsed',coll
 document.getElementById('cla').onclick=()=>{state.clients.forEach(c=>collapsed[c.id]=true);collapsed._=true;ls.set('collapsed',collapsed);render()};
 const applyPane=()=>{document.body.classList.toggle('nopane',paneHidden);document.getElementById('pane').textContent=paneHidden?'Show projects':'Hide projects'};
 document.getElementById('pane').onclick=()=>{paneHidden=!paneHidden;ls.set('pane',paneHidden);applyPane()};applyPane();
+const paneResizer=document.getElementById('pane-resizer');
+let paneWidth=Number(ls.get('pane-width',250))||250;
+function setPaneWidth(width){paneWidth=Math.round(Math.max(200,Math.min(width,Math.max(200,window.innerWidth-180))));document.documentElement.style.setProperty('--pane-width',paneWidth+'px');paneResizer.setAttribute('aria-valuemin','200');paneResizer.setAttribute('aria-valuemax',String(Math.max(200,window.innerWidth-180)));paneResizer.setAttribute('aria-valuenow',String(paneWidth))}
+setPaneWidth(paneWidth);
+let paneDrag=null;
+paneResizer.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();paneDrag={x:e.clientX,width:paneWidth};paneResizer.setPointerCapture(e.pointerId);document.body.classList.add('resizing-pane')});
+paneResizer.addEventListener('pointermove',e=>{if(paneDrag)setPaneWidth(paneDrag.width+e.clientX-paneDrag.x)});
+function endPaneResize(){if(!paneDrag)return;paneDrag=null;document.body.classList.remove('resizing-pane');ls.set('pane-width',paneWidth)}
+paneResizer.addEventListener('pointerup',endPaneResize);paneResizer.addEventListener('pointercancel',endPaneResize);paneResizer.addEventListener('lostpointercapture',endPaneResize);
+paneResizer.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();setPaneWidth(paneWidth+(e.key==='ArrowRight'?20:-20));ls.set('pane-width',paneWidth)}});
+window.addEventListener('resize',()=>setPaneWidth(paneWidth));
+const settings=document.getElementById('settings');
+document.addEventListener('click',e=>{if(!settings.contains(e.target)||e.target.closest('#settings button'))settings.open=false});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&settings.open){settings.open=false;settings.querySelector('summary').focus()}});
 const themeButton=document.getElementById('theme-toggle');
 const systemTheme=window.matchMedia('(prefers-color-scheme: dark)');
 const isDark=()=>document.documentElement.dataset.theme?document.documentElement.dataset.theme==='dark':systemTheme.matches;
