@@ -233,6 +233,7 @@ function seed(){
 let state={clients:[],holidays:[],users:[],projects:[],people:[],allocs:[]};
 let filterQ='';
 let collapsedResources={};try{const saved=JSON.parse(localStorage.getItem('planner-collapsed-resources')||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))collapsedResources=saved}catch(e){}
+document.addEventListener('click',e=>{const button=e.target.closest('[data-resource-expand-all],[data-resource-collapse-all]');if(!button)return;e.preventDefault();e.stopImmediatePropagation();const collapse=button.hasAttribute('data-resource-collapse-all');sortedPeople().forEach(p=>{collapsedResources[p.id]=collapse});try{localStorage.setItem('planner-collapsed-resources',JSON.stringify(collapsedResources))}catch(err){}render();document.querySelector(collapse?'[data-resource-collapse-all]':'[data-resource-expand-all]')?.focus()},true);
 document.addEventListener('click',e=>{const button=e.target.closest('[data-collapse-resource]');if(!button)return;e.preventDefault();e.stopImmediatePropagation();const id=button.dataset.collapseResource;collapsedResources[id]=!collapsedResources[id];try{localStorage.setItem('planner-collapsed-resources',JSON.stringify(collapsedResources))}catch(err){}render();document.querySelectorAll('[data-collapse-resource]').forEach(b=>{if(b.dataset.collapseResource===id)b.focus()})},true);
 let rowH={};try{rowH=JSON.parse(localStorage.getItem('planner-rowh')||'{}')}catch(e){}
 const saveRowH=()=>{try{localStorage.setItem('planner-rowh',JSON.stringify(rowH))}catch(e){}};
@@ -334,7 +335,7 @@ function render(){
     wk+=`<div style="width:${7*DW}px">${d.getDate()<=7||w===0?'<b>'+d.toLocaleDateString('en-GB',{month:'long',year:'numeric'})+'</b> · ':''}${lbl}</div>`;
   }
   cols.forEach((c,i)=>{const d=parse(c);const k=offA[i];dy+=`<div style="width:${DW}px" class="${c===todayISO?'td':''} ${k===1?'we':k===2?'ph':''}" ${k===1?'':`data-hd="${c}" title="${esc(k===2?holMap[c]+' (click to edit)':'Click to mark as a public holiday')}"`}>${'MTWTFSS'[(d.getDay()+6)%7]}<b>${d.getDate()}</b></div>`});
-  let html=`<div class="hrow"><div class="corner">${state.people.filter(matches).length} of ${state.people.length} people</div><div class="hdr" style="width:${W}px"><div class="wk">${wk}</div><div class="dy">${dy}</div></div></div>`;
+  let html=`<div class="hrow"><div class="corner" style="align-items:center;gap:5px;flex-wrap:wrap"><span style="flex:1">${state.people.filter(matches).length} of ${state.people.length} people</span><button type="button" data-resource-expand-all aria-label="Expand all displayed resource rows" title="Expand all resource rows" style="padding:2px 7px">+</button><button type="button" data-resource-collapse-all aria-label="Collapse all displayed resource rows" title="Collapse all resource rows" style="padding:2px 7px">&minus;</button></div><div class="hdr" style="width:${W}px"><div class="wk">${wk}</div><div class="dy">${dy}</div></div></div>`;
   const tIdx=cols.indexOf(todayISO);
   const weekStart=visibleWeek();const thisWk=cols.map((c,i)=>[c,i]).filter(([c])=>c>=weekStart&&c<=addDays(weekStart,6)).map(x=>x[1]).filter(i=>offA[i]!==2);
   sortedPeople().forEach(p=>{
@@ -600,11 +601,12 @@ const undoStack=[],redoStack=[];let pendingEdit=null,replaying=false;
 const historyKinds=new Set(['clients','projects','people','allocs','holidays']);
 const copyEdit=x=>x==null?null:JSON.parse(JSON.stringify(x));
 const historyValue=x=>{if(!x)return null;const r=copyEdit(x);delete r.id;return r};
+const historyKey=value=>JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
 function historyButtons(){document.getElementById('undo').disabled=replaying||!undoStack.length||!atLeast('manager');document.getElementById('redo').disabled=replaying||!redoStack.length||!atLeast('manager')}
-function finishEdit(){if(!pendingEdit)return;const changes=[...pendingEdit.values()].filter(c=>JSON.stringify(c.before)!==JSON.stringify(c.after));pendingEdit=null;if(changes.length){undoStack.push(changes);if(undoStack.length>100)undoStack.shift();redoStack.length=0}historyButtons()}
+function finishEdit(){if(!pendingEdit)return;const changes=[...pendingEdit.values()].filter(c=>historyKey(c.before)!==historyKey(c.after));pendingEdit=null;if(changes.length){undoStack.push(changes);if(undoStack.length>100)undoStack.shift();redoStack.length=0}historyButtons()}
 function captureEdit(kind,id,obj){if(replaying||!historyKinds.has(kind))return;const key=kind+'/'+id;if(!pendingEdit){pendingEdit=new Map();queueMicrotask(finishEdit)}const before=shadow[key]?JSON.parse(shadow[key]):null;const change=pendingEdit.get(key)||{kind,id,before:copyEdit(before)};change.after=historyValue(obj);pendingEdit.set(key,change)}
 async function replayEdit(redo=false){finishEdit();if(replaying||!atLeast('manager'))return;const source=redo?redoStack:undoStack,target=redo?undoStack:redoStack,entry=source[source.length-1];if(!entry)return;
-  for(const c of entry){const current=historyValue(state[c.kind].find(x=>x.id===c.id));if(JSON.stringify(current)!==JSON.stringify(redo?c.before:c.after)){setStatus('Cannot '+(redo?'redo':'undo')+': this record has changed since your edit.');return}}
+  for(const c of entry){const current=historyValue(state[c.kind].find(x=>x.id===c.id));if(historyKey(current)!==historyKey(redo?c.before:c.after)){setStatus('Cannot '+(redo?'redo':'undo')+': this record has changed since your edit.');return}}
   replaying=true;historyButtons();closeModal();closePop();
   try{for(const c of (redo?entry:[...entry].reverse())){const value=copyEdit(redo?c.after:c.before);state[c.kind]=state[c.kind].filter(x=>x.id!==c.id);if(value)state[c.kind].push({id:c.id,...value});if(db){if(value)await db.collection(c.kind).doc(c.id).set(value);else await db.collection(c.kind).doc(c.id).delete();logChange(c.kind,c.id,value)}else{if(value)shadow[c.kind+'/'+c.id]=JSON.stringify(value);else delete shadow[c.kind+'/'+c.id];saveLocal()}}source.pop();target.push(entry);sortAll();render()}catch(e){fail(e);undoStack.length=0;redoStack.length=0}finally{replaying=false;historyButtons()}
 }
@@ -1175,7 +1177,7 @@ function makeDB(){
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
   return{collection:n=>coll(n),
     refresh:()=>{rev=-1;poll()},
-    batch:async(ops,cb)=>{for(let i=0;i<ops.length;i+=25){await API('/api/data',{ops:ops.slice(i,i+25)});if(cb)cb(Math.min(ops.length,i+25),ops.length)}rev=-1;poll()}};
+    batch:async(ops,cb)=>{for(const op of ops)captureEdit(op.coll,op.id,op.op==='delete'?null:op.data);for(let i=0;i<ops.length;i+=25){const chunk=ops.slice(i,i+25);await API('/api/data',{ops:chunk});for(const op of chunk){store[op.coll]??={};if(op.op==='delete')delete store[op.coll][op.id];else store[op.coll][op.id]=copyEdit(op.data)}fire();if(cb)cb(Math.min(ops.length,i+25),ops.length)}rev=-1;poll()}};
 }
 function startApp(){
   window.claude={use:async n=>n==='db'?makeDB():{id:async()=>session.id,me:async()=>({name:session.name,email:session.username}),isOwner:async()=>false,can:async()=>true}};
