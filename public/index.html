@@ -1148,7 +1148,7 @@ const API=async(path,body)=>{
   return j;
 };
 function makeDB(){
-  let rev=-1,store={},loaded=false,timer=null;const subs=[];
+  let rev=-1,store={},loaded=false,timer=null,pendingWrites=0,changeEpoch=0,pollSequence=0;let writeQueue=Promise.resolve();const subs=[];
   const docsOf=(coll,o)=>{
     let a=Object.entries(store[coll]||{}).map(([id,v])=>({id,data:()=>v}));
     if(o&&o.by)a.sort((x,y)=>{const p=x.data()[o.by],q=y.data()[o.by];return(o.dir==='desc'?-1:1)*(p>q?1:p<q?-1:0)});
@@ -1157,12 +1157,13 @@ function makeDB(){
   };
   const fire=()=>subs.forEach(s=>s.cb({docs:docsOf(s.coll,s.o)}));
   const poll=async()=>{
-    try{const j=await API('/api/data?rev='+rev);
+    const epoch=changeEpoch,sequence=++pollSequence;
+    try{const j=await API('/api/data?rev='+rev);if(pendingWrites||epoch!==changeEpoch||sequence!==pollSequence)return;
       if(j.online)showPresence(j.online);if(j.changed){store=j.data;rev=j.rev;loaded=true;fire()}else if(!loaded){loaded=true;fire()}}
     catch(e){subs.forEach(s=>s.err&&s.err(e))}
   };
   const soon=()=>{clearTimeout(timer);timer=setTimeout(poll,500)};
-  const write=async ops=>{try{await API('/api/data',{ops})}catch(e){rev=-1;poll();throw e}soon()};
+  const write=ops=>{pendingWrites++;changeEpoch++;const result=writeQueue.catch(()=>{}).then(()=>API('/api/data',{ops}));writeQueue=result;return result.catch(e=>{rev=-1;throw e}).finally(()=>{pendingWrites--;changeEpoch++;if(!pendingWrites)soon()})};
   const coll=(name,o={})=>({
     doc:id=>({
       set:obj=>{(store[name]=store[name]||{})[id]=obj;fire();return write([{op:'set',coll:name,id,data:obj}])},
@@ -1177,7 +1178,7 @@ function makeDB(){
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
   return{collection:n=>coll(n),
     refresh:()=>{rev=-1;poll()},
-    batch:async(ops,cb)=>{for(const op of ops)captureEdit(op.coll,op.id,op.op==='delete'?null:op.data);for(let i=0;i<ops.length;i+=25){const chunk=ops.slice(i,i+25);await API('/api/data',{ops:chunk});for(const op of chunk){store[op.coll]??={};if(op.op==='delete')delete store[op.coll][op.id];else store[op.coll][op.id]=copyEdit(op.data)}fire();if(cb)cb(Math.min(ops.length,i+25),ops.length)}rev=-1;poll()}};
+    batch:async(ops,cb)=>{for(const op of ops)captureEdit(op.coll,op.id,op.op==='delete'?null:op.data);for(let i=0;i<ops.length;i+=25){const chunk=ops.slice(i,i+25);await write(chunk);for(const op of chunk){store[op.coll]??={};if(op.op==='delete')delete store[op.coll][op.id];else store[op.coll][op.id]=copyEdit(op.data)}fire();if(cb)cb(Math.min(ops.length,i+25),ops.length)}rev=-1;poll()}};
 }
 function startApp(){
   window.claude={use:async n=>n==='db'?makeDB():{id:async()=>session.id,me:async()=>({name:session.name,email:session.username}),isOwner:async()=>false,can:async()=>true}};
