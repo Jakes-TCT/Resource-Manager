@@ -145,6 +145,16 @@ body.resizing-pane{cursor:col-resize;user-select:none}
 #projs .inactive>.ch i,#projs .chip.inactive i,#projs .cg.inactive>.chip i{background:var(--mute)!important}
 #projs .inactive>.ch b,#projs .chip.inactive .cn,#projs .cg.inactive>.chip .cn{color:var(--mute)}
 .item-status{font-size:10px;font-weight:400;color:var(--mute);white-space:nowrap}
+
+.leave-day{position:absolute;top:0;bottom:0;background:#7c839652;pointer-events:none}
+.util-flag{display:block;width:fit-content;font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;margin:5px 0;background:#ffd8d8;color:#a51622}
+.util-flag.under{background:#fff0cd;color:#945600}
+.owner-group,.lifecycle-section,.role-group{margin:10px 0;border-top:1px solid var(--line);padding-top:7px}
+.owner-group>summary,.lifecycle-section>summary,.role-group>summary{font-weight:600;cursor:pointer;color:var(--mute);margin-bottom:8px}
+.owner-group .cg{margin-left:8px}.client-link{font-size:11px;color:var(--accent);cursor:pointer;display:block;margin-left:32px}
+.ownership-log{max-height:150px;overflow:auto;margin-top:8px}.ownership-log p{font-size:11px;color:var(--mute);border-top:1px solid var(--line)}
+.skill-picker{border:1px solid var(--line2);border-radius:6px;padding:8px;max-height:220px;overflow:auto}.skill-picker summary{cursor:pointer}
+body.zoomed-out .al{font-size:14px}body.zoomed-out .al small{font-size:12px}body.zoomed-out .al .nm{white-space:normal;overflow-wrap:anywhere}
 </style>
 <script>
 try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}
@@ -154,10 +164,9 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
 <header>
   <details id="settings"><summary>Settings</summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button></nav></details>
   <h1>Capacity planner</h1>
-  <button id="pane">Hide projects</button><button id="today">Today</button>
-  <span class="hint">Drag projects onto a row. Drag bars to move; pull the edges to resize. Click, or click and drag across empty slots, to add a project.</span>
+  <button id="pane">Hide projects</button><button id="today">Today</button><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label" class="hint">100%</span><button id="zoom-in" aria-label="Zoom in">+</button>
   <span class="sp"></span>
-  <select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><input id="flt" placeholder="Filter team by name, title or skill" aria-label="Filter team" style="width:250px"><button id="act" hidden>Activity</button><span id="status" class="hint">Connecting…</span><span id="pres" class="pres"></span>
+  <select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><input id="flt" placeholder="Search team, skills, clients or projects" aria-label="Search team, skills, clients or projects" style="width:250px"><button id="act" hidden>Activity</button><span id="status" class="hint">Connecting…</span><span id="pres" class="pres"></span>
 <button id="theme-toggle" class="icon-button" aria-label="Switch colour mode" title="Switch colour mode"></button>
 </header>
 <main>
@@ -176,7 +185,7 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
   <div id="scroller"><div id="content"></div></div>
 </main>
 <script>
-const DW=40,BH=34,GAP=4,PAD=6;
+let DW=40;const BH=34,GAP=4,PAD=6;
 const COLORS=['#e8590c','#2f9e44','#1c3a8a','#c2255c','#0c8599','#7048e8','#b08900','#5c6370'];
 const KEY='capacity-planner-v1';
 const PALETTE=['#c92a2a','#d9480f','#e8590c','#f08c00','#b08900','#74b816','#2f9e44','#099268','#0ca678','#0c8599','#1098ad','#1971c2','#3b5bdb','#1c3a8a','#5f3dc4','#7048e8','#9c36b5','#c2255c','#e64980','#a61e4d','#8d6e63','#5c6370','#868e96','#343a40'];
@@ -216,14 +225,14 @@ const rank={contributor:1,manager:2,admin:3};
 let pf='';
 const STG={active:'Active',hired:'Hired, starting soon',offer:'Offer made',interview:'Interviewing',screening:'Screening',sourcing:'Sourcing'};
 const atLeast=r=>(rank[myRole]||0)>=rank[r];
-const matches=p=>(!filterQ||(p.name+' '+(p.role||'')+' '+(p.emp||'')+' '+(p.stage&&p.stage!=='active'?STG[p.stage]:'')+' '+(p.skills||[]).join(' ')).toLowerCase().includes(filterQ))&&(!skillSel.size||(p.skills||[]).some(s=>skillSel.has(s)));
+const matches=p=>(!filterQ||personProjectMatch(p)||(p.name+' '+(p.role||'')+' '+(p.emp||'')+' '+(p.stage&&p.stage!=='active'?STG[p.stage]:'')+' '+(p.skills||[]).join(' ')).toLowerCase().includes(filterQ))&&(!skillSel.size||(p.skills||[]).some(s=>skillSel.has(s)));
 const sortedPeople=()=>{const l=state.people.filter(matches).filter(p=>!pf||state.allocs.some(a=>a.person===p.id&&visAlloc(a)));if(sortBy==='name')l.sort((a,b)=>a.name.localeCompare(b.name));else if(sortBy==='name-desc')l.sort((a,b)=>b.name.localeCompare(a.name));else if(sortBy==='title')l.sort((a,b)=>(a.role||'~').localeCompare(b.role||'~')||a.name.localeCompare(b.name));return l};
 let db=null,readOnly=false,synced=false,dirty=false;
 function loadLocal(){try{const s=localStorage.getItem(KEY);return s?JSON.parse(s):null}catch(e){return null}}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
 function setStatus(t){const s=document.getElementById('status');if(s)s.textContent=t}
 function fail(e){setStatus('Save failed: '+((e&&(e.message||e.code))||'unknown error'))}
-function put(kind,obj){if(!db){saveLocal();return}const r={...obj};delete r.id;db.collection(kind).doc(obj.id).set(r).catch(fail);logChange(kind,obj.id,r)}
+function put(kind,obj){recordOwnership(kind,obj);if(!db){saveLocal();return}const r={...obj};delete r.id;db.collection(kind).doc(obj.id).set(r).catch(fail);logChange(kind,obj.id,r)}
 function del(kind,id){if(!db){saveLocal();return}db.collection(kind).doc(id).delete().catch(fail);logChange(kind,id,null)}
 function sortAll(){state.clients.sort((a,b)=>(a.n||0)-(b.n||0));state.projects.sort((a,b)=>(a.leave?1:0)-(b.leave?1:0)||(a.n||0)-(b.n||0));state.people.sort((a,b)=>(a.n||0)-(b.n||0)||a.name.localeCompare(b.name))}
 function refresh(){if(drag){dirty=true;return}render()}
@@ -252,7 +261,7 @@ const colorOf=p=>p.leave?'#9aa1b5':(client(p.clientId)?.color||p.color||'#5c6370
 const labelOf=p=>{const c=client(p.clientId);return c?c.name+' / '+p.name:p.name};
 const isLinked=p=>!!p&&!p.leave&&!!client(p.clientId);
 const eff=a=>{const pr=proj(a.proj);return isLinked(pr)&&pr.start&&pr.end&&!a.own?{...a,start:pr.start,end:pr.end}:a};
-const visAlloc=a=>{if(!pf)return true;const pr=proj(a.proj);if(!pr)return false;return pf[0]==='c'?pr.clientId===pf.slice(2):a.proj===pf.slice(2)};
+const visAlloc=a=>{if(filterQ&&!personTextMatch(a.person)&&!projectSearchMatch(a.proj))return false;if(!pf)return true;const pr=proj(a.proj);if(!pr)return false;return pf[0]==='c'?pr.clientId===pf.slice(2):a.proj===pf.slice(2)};
 let offA=[],holMap={};
 const nextWork=(i,dir)=>{i=Math.max(0,Math.min(i,cols.length-1));while(i>=0&&i<cols.length&&offA[i])i+=dir;return i<0||i>=cols.length?-1:i};
 const addWork=(a,n)=>{let i=a,k=1;while(k<n){const j=nextWork(i+1,1);if(j<0)break;i=j;k++}return i};
@@ -292,7 +301,7 @@ function teamGroups(){
   return [...groups.values()].sort((a,b)=>a.label==='No role assigned'?1:b.label==='No role assigned'?-1:a.label.localeCompare(b.label)).map(g=>[g.label,g.people.sort((a,b)=>a.name.localeCompare(b.name))]);
 }
 function render(){
-  sortAll();buildCols();holMap={};state.holidays.forEach(h=>holMap[h.id]=h.name||'Public holiday');offA=cols.map(c=>{const g=parse(c).getDay();return g===0||g===6?1:(holMap[c]?2:0)});wdA=cols.map(c=>parse(c).getDay());
+  sortAll();buildCols();holMap=saHolidays();state.holidays.forEach(h=>holMap[h.id]=h.name||'Public holiday');offA=cols.map(c=>{const g=parse(c).getDay();return g===0||g===6?1:(holMap[c]?2:0)});wdA=cols.map(c=>parse(c).getDay());
   const W=cols.length*DW, el=document.getElementById('content');
   el.style.width=(200+W)+'px';
   // header
@@ -305,7 +314,7 @@ function render(){
   cols.forEach((c,i)=>{const d=parse(c);const k=offA[i];dy+=`<div style="width:${DW}px" class="${c===todayISO?'td':''} ${k===1?'we':k===2?'ph':''}" ${k===1?'':`data-hd="${c}" title="${esc(k===2?holMap[c]+' (click to edit)':'Click to mark as a public holiday')}"`}>${'MTWTFSS'[(d.getDay()+6)%7]}<b>${d.getDate()}</b></div>`});
   let html=`<div class="hrow"><div class="corner">${state.people.filter(matches).length} of ${state.people.length} people</div><div class="hdr" style="width:${W}px"><div class="wk">${wk}</div><div class="dy">${dy}</div></div></div>`;
   const tIdx=cols.indexOf(todayISO);
-  const thisWk=cols.map((c,i)=>[c,i]).filter(([c])=>c>=fmt(mondayOf(new Date()))&&c<=addDays(fmt(mondayOf(new Date())),6)).map(x=>x[1]).filter(i=>offA[i]!==2);
+  const weekStart=visibleWeek();const thisWk=cols.map((c,i)=>[c,i]).filter(([c])=>c>=weekStart&&c<=addDays(weekStart,6)).map(x=>x[1]).filter(i=>offA[i]!==2);
   sortedPeople().forEach(p=>{
     const mine=state.allocs.filter(a=>a.person===p.id).filter(visAlloc).map(a=>({a,s:span(eff(a))})).filter(x=>x.s).sort((x,y)=>x.s[0]-y.s[0]);
     const offP=cols.map((c,i)=>!capOn(p,i));const stk=new Array(cols.length).fill(0),day={},dayAll={};
@@ -314,24 +323,21 @@ function render(){
     const peak=Math.max(maxCap(p),...stk),PPH=22;
     const h=rowH[p.id]?Math.max(44,rowH[p.id]):PAD*2+peak*PPH;
     const pph=(h-PAD*2)/peak;
-    let util=0;thisWk.forEach(i=>util+=day[i]||0);let capw=0;thisWk.forEach(i=>capw+=capOn(p,i));const pct=Math.round(util/Math.max(1,capw)*100);
+    let util=0;thisWk.forEach(i=>util+=day[i]||0);let capw=0;thisWk.forEach(i=>capw+=capOn(p,i));const pct=Math.round(util/Math.max(1,capw)*100);const flag=weeklyFlag(p,weekStart);
     let tr='';
     if(tIdx>=0)tr+=`<div class="col-td" style="left:${tIdx*DW}px;width:${DW}px"></div>`;
     for(const i in dayAll)if(dayAll[i]>capOn(p,i)+0.001)tr+=`<div class="ov" style="left:${i*DW}px;width:${DW}px"></div>`;
     for(let w=0;w<range.weeks;w++)tr+=`<div class="wkl" style="left:${w*7*DW}px"></div>`;
     cols.forEach((c,i)=>{if(offP[i])tr+=`<div class="off${offA[i]===2?' hol':''}" style="left:${i*DW}px;width:${DW}px"></div>`});
+    cols.forEach((date,i)=>{const leave=state.allocs.filter(a=>a.person===p.id&&proj(a.proj)?.leave&&eff(a).start<=date&&eff(a).end>=date).reduce((n,a)=>n+Number(a.hrs||0),0);if(leave>=8)tr+=`<div class="leave-day" style="left:${i*DW}px;width:${DW}px" title="Full day unavailable"></div>`});
     mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};segs(x.s[0],x.s[1],offP).forEach(([si,sj],k,arr)=>{
       tr+=`<div class="al ${pr.leave?'leave':(x.a.status==='tentative'?'tent':'')}${x.a.hrs*pph<36?' sh':''}" data-id="${x.a.id}" title="${esc(barName(pr,p)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${si*DW+1}px;width:${(sj-si+1)*DW-2}px;top:${PAD+x.y*pph}px;height:${Math.max(12,x.a.hrs*pph-2)}px;--c:${colorOf(pr)}"><span class="nm"${x.a.hrs*pph>=52?' style="white-space:normal"':''}>${x.a.hrs*pph>=52?barTall(pr,p):esc(barName(pr,p))}</span><small>${x.a.hrs}h/day${!pr.leave&&x.a.status==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
-    html+=`<div class="row" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><b>${esc(p.name)}</b><span>${esc(p.role||'')} · ${pct}% this week</span><div class="tags">${dayLabel(p)?'<em>'+esc(dayLabel(p))+'</em>':''}${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
+    html+=`<div class="row" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><b>${esc(p.name)}</b>${flag}<span>${esc(p.role||'')} · ${pct}% selected week</span><div class="tags">${dayLabel(p)?'<em>'+esc(dayLabel(p))+'</em>':''}${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
   });
   if(!state.people.length)html+='<div class="empty">'+(db&&!synced?'Loading the shared plan…':'Add a team member in the sidebar to start planning.')+'</div>';
   el.innerHTML=html;
   fillPf();{const dpn=document.getElementById('dpane');if(dpn&&!dpn.contains(document.activeElement))drawDetails()}
-  // sidebar
-  {const chip=p=>`<div class="chip ${p.leave?'leave':''} ${p.status==='inactive'?'inactive':''}" title="${esc(p.status==='inactive'?'Inactive':p.status==='complete'?'Complete':'Active')}" data-proj="${p.id}"><i style="background:${p.leave?'':colorOf(p)}"></i><span class="cn">${esc(p.name)}</span><button class="ed" data-eproj="${p.id}" aria-label="Edit ${esc(p.name)}">✎</button></div>`;
-  const other=state.projects.filter(p=>!client(p.clientId));
-  document.getElementById('projs').innerHTML=sortedClients().map(c=>`<div class="cg ${c.status==='inactive'?'inactive':''}"><div class="ch" title="${c.status==='inactive'?'Inactive':'Active'}"><button class="tg" data-tg="${c.id}" aria-expanded="${!collapsed[c.id]}" aria-label="${collapsed[c.id]?'Expand':'Collapse'} ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><b>${esc(c.name)}</b><span class="hint">${state.projects.filter(p=>p.clientId===c.id).length}</span><button data-eclient="${c.id}">Edit</button></div>${collapsed[c.id]?'':state.projects.filter(p=>p.clientId===c.id).map(chip).join('')}<div class="add" ${collapsed[c.id]?'hidden':''}><input data-np="${c.id}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${c.id}">Add</button></div></div>`).join('')+`<div class="cg"><div class="ch"><button class="tg" data-tg="_" aria-expanded="${!collapsed._}" aria-label="${collapsed._?'Expand':'Collapse'} time off and other">${collapsed._?'▸':'▾'}</button><b>Time off and other</b><span class="hint">${other.length}</span></div>${collapsed._?'':other.map(chip).join('')}<div class="add adm" ${collapsed._?'hidden':''}><input data-np="_" placeholder="New item (sick, training...)" aria-label="New time off or other item"><button data-addp="_">Add</button></div></div>`;}
-  document.getElementById('ppl').innerHTML=teamGroups().map(([role,people])=>`<section><h3 class="team-role">${esc(role)}</h3>${people.map(p=>`<div class="hint team-member"><span>${esc(p.name)}</span><button data-rm="${p.id}" class="danger" style="padding:0 6px" aria-label="Remove ${esc(p.name)}">&times;</button></div>`).join('')}</section>`).join('');
+  renderSidebar();
 }
 
 /* ---------- drag and drop ---------- */
@@ -402,7 +408,7 @@ function openPop(id,e){
   const assignHtml=linked?`<label for="pa">Assigned to</label><div class="as" id="as">${team.filter((b,i)=>team.findIndex(c=>c.person===b.person)===i).map(b=>{const q=state.people.find(x=>x.id===b.person);return `<span class="ch2">${esc(q?q.name:'Unknown')}<b data-rm2="${b.id}" role="button" aria-label="Remove from project">\u00d7</b></span>`}).join('')}<input id="pa" placeholder="${team.length?'Add people':'Add people to this project'}" autocomplete="off"></div><div id="sg" class="sg" hidden></div>`:'';
   const opt=x=>`<option value="${x.id}" ${x.id===a.proj?'selected':''}>${esc(x.name)}</option>`;
   const optg=sortedClients().map(c=>`<optgroup label="${esc(c.name)}">${state.projects.filter(x=>x.clientId===c.id).map(opt).join('')}</optgroup>`).join('')+state.projects.filter(x=>!client(x.clientId)).map(opt).join('');
-  p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${ownHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
+  p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><div class="two"><div><label for="booking-start">Start date</label><input type="date" id="booking-start" value="${eff(a).start||''}"></div><div><label for="booking-end">End date</label><input type="date" id="booking-end" value="${eff(a).end||''}"></div></div><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${ownHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
   document.body.appendChild(p);
   p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-520))+'px';
   if(!atLeast('manager'))p.classList.add('lim');
@@ -411,15 +417,15 @@ function openPop(id,e){
   if(pa){
     const showSg=()=>{const q=pa.value.trim().toLowerCase();const m=freeP.filter(x=>!q||x.name.toLowerCase().includes(q)).slice(0,6);sg.innerHTML=m.map(x=>`<div data-add="${x.id}">${esc(x.name)} <span class="hint">${esc(x.role||'')}</span></div>`).join('');sg.hidden=!m.length};
     pa.oninput=showSg;pa.onfocus=showSg;
-    pa.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();const f=sg.querySelector('[data-add]');if(f){addAssignment(f.dataset.add,a.proj);reopen()}}};
-    sg.onpointerdown=ev=>{const d=ev.target.closest('[data-add]');if(!d)return;ev.preventDefault();addAssignment(d.dataset.add,a.proj);reopen()};
+    pa.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();const f=sg.querySelector('[data-add]');if(f){addAssignment(f.dataset.add,a.proj,bookingDates(p,a));reopen()}}};
+    sg.onpointerdown=ev=>{const d=ev.target.closest('[data-add]');if(!d)return;ev.preventDefault();addAssignment(d.dataset.add,a.proj,bookingDates(p,a));reopen()};
   }
   p.querySelectorAll('[data-rm2]').forEach(x=>x.onclick=()=>{const t0=state.allocs.find(b=>b.id===x.dataset.rm2);const gone=t0?state.allocs.filter(b=>b.person===t0.person&&b.proj===t0.proj):[];state.allocs=state.allocs.filter(b=>!gone.includes(b));gone.forEach(b=>del('allocs',b.id));if(gone.some(b=>b.id===id)){closePop();render()}else reopen()});
   const pfw=p.querySelector('#pfw');if(pfw)pfw.onclick=()=>{delete a.own;delete a.start;delete a.end;put('allocs',a);closePop();render()};
   const pvc=p.querySelector('#pvc');if(pvc)pvc.onclick=()=>{const l=p.querySelector('#hl');l.hidden=!l.hidden};
   p.querySelector('#st').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;p.querySelectorAll('#st button').forEach(x=>x.classList.toggle('on',x===b))};
   p.querySelector('#ph').focus();
-  p.querySelector('#pc').onclick=()=>{const c=state.allocs.find(x=>x.id===id);if(c){c.hrs=Math.max(.5,parseFloat(p.querySelector('#ph').value)||c.hrs);c.proj=p.querySelector('#pp').value;c.status=p.querySelector('#st .on').dataset.v;c.comment=p.querySelector('#pk').value.trim();put('allocs',c)}closePop();render()};
+  p.querySelector('#pc').onclick=()=>{const dates=bookingDates(p,a);if(!dates)return;const c=state.allocs.find(x=>x.id===id);if(c){c.hrs=Math.max(.5,parseFloat(p.querySelector('#ph').value)||c.hrs);c.proj=p.querySelector('#pp').value;c.status=p.querySelector('#st .on').dataset.v;c.comment=p.querySelector('#pk').value.trim();if(dates.start!==eff(c).start||dates.end!==eff(c).end){c.start=dates.start;c.end=dates.end;c.own=true}put('allocs',c)}closePop();render()};
   p.querySelector('#pd').onclick=()=>{state.allocs=state.allocs.filter(x=>x.id!==id);del('allocs',id);closePop();render()};
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePop();closeModal()}if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA'&&document.querySelector('.pop'))document.querySelector('#pc')?.click();if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.np)document.querySelector('[data-addp="'+e.target.dataset.np+'"]').click()});
@@ -449,7 +455,7 @@ function modal(title,body,onSave,onDelete,delLabel,init){
   document.body.appendChild(o);
   o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
   o.querySelector('[data-x]').onclick=closeModal;
-  o.querySelector('[data-s]').onclick=()=>{onSave(o);closeModal()};
+  o.querySelector('[data-s]').onclick=()=>{if(onSave(o)!==false)closeModal()};
   const d=o.querySelector('[data-d]');
   if(d)d.onclick=()=>{if(d.dataset.arm!=='1'){d.dataset.arm='1';d.textContent='Click again to confirm';return}onDelete();closeModal()};
   if(init)init(o);
@@ -458,27 +464,28 @@ function modal(title,body,onSave,onDelete,delLabel,init){
 function dropProject(id){state.allocs.filter(a=>a.proj===id).forEach(a=>del('allocs',a.id));state.allocs=state.allocs.filter(a=>a.proj!==id);state.projects=state.projects.filter(p=>p.id!==id);del('projects',id)}
 function openPerson(id){
   const p=state.people.find(x=>x.id===id);if(!p)return;
-  const sk=[...(p.skills||[])];let addTag=()=>{};
-  const known=[...new Set(state.people.flatMap(x=>x.skills||[]))];
+  let sk=[...(p.skills||[])];let addTag=()=>{};
+  const known=[...new Set(state.people.flatMap(x=>x.skills||[]))].sort((a,b)=>a.localeCompare(b));
   const dm=daysOf(p),NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const daysHtml=[1,2,3,4,5,6,0].map(d=>{const on=(Number(dm[d])||0)>0;return `<div class="wdr"><label class="ck"><input type="checkbox" data-d="${d}" ${on?'checked':''}> ${NAMES[d]}</label><input type="number" min="0.5" max="16" step="0.5" data-h="${d}" value="${on?dm[d]:(p.cap||8)}" ${on?'':'disabled'} aria-label="${NAMES[d]} hours"><span class="hint">h</span></div>`}).join('');
-  modal('Edit team member',`<label>Name</label><input id="f-n" value="${esc(p.name)}"><label>Job title</label><input id="f-r" value="${esc(p.role||'')}"><label>Employment</label><select id="f-e"><option value="permanent" ${p.emp!=='contractor'?'selected':''}>Permanent</option><option value="contractor" ${p.emp==='contractor'?'selected':''}>Contractor</option></select><label>Recruitment stage</label><select id="f-s">${Object.entries(STG).map(([k,v])=>`<option value="${k}" ${(p.stage||'active')===k?'selected':''}>${v}</option>`).join('')}</select><label>Capacity (hours per day)</label><input id="f-c" type="number" min="1" max="24" step="0.5" value="${p.cap||8}"><label>Work days</label><div id="wd">${daysHtml}</div><label>Skills</label><div id="tg" class="tags big"></div><input id="ti" list="skl" placeholder="Type a skill, press Enter"><datalist id="skl">${known.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`,
+  modal('Edit team member',`<label>Name</label><input id="f-n" value="${esc(p.name)}"><label>Job title</label><input id="f-r" value="${esc(p.role||'')}"><label>Employment</label><select id="f-e"><option value="permanent" ${p.emp!=='contractor'?'selected':''}>Permanent</option><option value="contractor" ${p.emp==='contractor'?'selected':''}>Contractor</option></select><label>Recruitment stage</label><select id="f-s">${Object.entries(STG).map(([k,v])=>`<option value="${k}" ${(p.stage||'active')===k?'selected':''}>${v}</option>`).join('')}</select><label>Capacity (hours per day)</label><input id="f-c" type="number" min="1" max="24" step="0.5" value="${p.cap||8}"><label>Work days</label><div id="wd">${daysHtml}</div><label>Skills</label><details class="skill-picker"><summary>Select existing skills</summary><div id="skill-checks">${known.map(skill=>`<label class="ck"><input type="checkbox" data-skill="${esc(skill)}" ${sk.includes(skill)?'checked':''}>${esc(skill)}</label>`).join('')}</div></details><div id="tg" class="tags big"></div><input id="ti" list="skl" placeholder="Type a skill, press Enter"><datalist id="skl">${known.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`,
     o=>{addTag();p.name=o.querySelector('#f-n').value.trim()||p.name;p.role=o.querySelector('#f-r').value.trim();p.cap=Math.max(1,parseFloat(o.querySelector('#f-c').value)||8);p.skills=sk;{const dd={};o.querySelectorAll('[data-d]').forEach(c=>{if(c.checked){const h=parseFloat(o.querySelector('[data-h="'+c.dataset.d+'"]').value)||p.cap||8;dd[c.dataset.d]=Math.max(.5,Math.min(16,h))}});p.days=Object.keys(dd).length?dd:daysOf({cap:p.cap})}p.emp=o.querySelector('#f-e').value;p.stage=o.querySelector('#f-s').value;put('people',p);render()},
     ()=>{state.allocs.filter(a=>a.person===id).forEach(a=>del('allocs',a.id));state.allocs=state.allocs.filter(a=>a.person!==id);state.people=state.people.filter(x=>x.id!==id);del('people',id);render()},'Remove person and bookings',
     o=>{o.querySelector('#wd').onchange=e=>{const c=e.target.closest('[data-d]');if(!c)return;const h=o.querySelector('[data-h="'+c.dataset.d+'"]');h.disabled=!c.checked;if(c.checked&&!parseFloat(h.value))h.value=o.querySelector('#f-c').value||8};const box=o.querySelector('#tg'),inp=o.querySelector('#ti');
-      const draw=()=>{box.innerHTML=sk.map((s,i)=>`<em>${esc(s)} <a data-i="${i}" role="button" aria-label="Remove ${esc(s)}">×</a></em>`).join('')};
+      o.querySelector('#skill-checks').onchange=e=>{const skill=e.target.dataset.skill;if(!skill)return;if(e.target.checked&&!sk.includes(skill))sk.push(skill);else if(!e.target.checked)sk=sk.filter(x=>x!==skill);draw()};
+      const draw=()=>{o.querySelectorAll('[data-skill]').forEach(x=>x.checked=sk.includes(x.dataset.skill));box.innerHTML=sk.map((s,i)=>`<em>${esc(s)} <a data-i="${i}" role="button" aria-label="Remove ${esc(s)}">×</a></em>`).join('')};
       addTag=()=>{inp.value.split(',').map(s=>s.trim()).filter(s=>s&&!sk.includes(s)).forEach(s=>sk.push(s));inp.value='';draw()};
       inp.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();addTag()}});
       box.addEventListener('click',e=>{const a=e.target.closest('[data-i]');if(a){sk.splice(+a.dataset.i,1);draw()}});draw()});
 }
 function statusField(item,project=false){
-  const options=project?[['active','Active'],['inactive','Inactive'],['complete','Complete']]:[['active','Active'],['inactive','Inactive']];
+  const options=project?[['active','Active'],['inactive','Inactive'],['complete','Complete'],['archived','Archived']]:[['active','Active'],['inactive','Inactive'],['archived','Archived']];
   return '<label for="f-status">Status</label><select id="f-status">'+options.map(([value,label])=>`<option value="${value}" ${(item.status||'active')===value?'selected':''}>${label}</option>`).join('')+'</select>';
 }
 function openClient(id){
   const c=client(id);if(!c)return;let col=c.color;
-  modal('Edit client',`<label>Name</label><input id="f-n" value="${esc(c.name)}">${statusField(c)}<label>Colour</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label>Custom colour</label><input type="color" id="f-col" value="${/^#[0-9a-f]{6}$/i.test(col)?col:'#5c6370'}" style="height:34px;padding:2px">`,
-    o=>{c.name=o.querySelector('#f-n').value.trim()||c.name;c.color=col;c.status=o.querySelector('#f-status').value;put('clients',c);render()},
+  modal('Edit client',`<label>Name</label><input id="f-n" value="${esc(c.name)}">${statusField(c)}${ownerFields(c,false)}<label>Colour</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label>Custom colour</label><input type="color" id="f-col" value="${/^#[0-9a-f]{6}$/i.test(col)?col:'#5c6370'}" style="height:34px;padding:2px">`,
+    o=>{c.name=o.querySelector('#f-n').value.trim()||c.name;c.color=col;c.status=o.querySelector('#f-status').value;c.clientOwnerId=o.querySelector('#client-owner').value;c.salesOwnerId=o.querySelector('#sales-owner').value;put('clients',c);render()},
     ()=>{state.projects.filter(p=>p.clientId===id).forEach(p=>dropProject(p.id));state.clients=state.clients.filter(x=>x.id!==id);del('clients',id);render()},'Delete client and its projects',
     o=>{const ci=o.querySelector('#f-col');o.querySelector('.sw').onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;col=b.dataset.c;ci.value=col;o.querySelectorAll('.sw button').forEach(x=>x.classList.toggle('on',x===b))};ci.oninput=()=>{col=ci.value;o.querySelectorAll('.sw button').forEach(x=>x.classList.toggle('on',x.dataset.c===col))}});
 }
@@ -502,8 +509,8 @@ function openProject(id){
   const p=state.projects.find(x=>x.id===id);if(!p)return;
   const built=p.id==='lv';let col=p.color||'#5c6370';
   const extra=built?'':`<label>Client</label><select id="f-c"><option value="">No client</option>${sortedClients().map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select><label>Colour (used when there is no client)</label><div class="sw">${PALETTE.map(x=>`<button type="button" data-c="${x}" style="background:${x}" class="${x===col?'on':''}" aria-label="Colour ${x}"></button>`).join('')}</div><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="f-l" ${p.leave?'checked':''} style="width:auto"> Shows as time off (hatched, not counted as work)</label>`;
-  modal('Edit project',`<label>Name</label><input id="f-n" value="${esc(p.name)}">${statusField(p,true)}${extra}`,
-    o=>{p.name=o.querySelector('#f-n').value.trim()||p.name;p.status=o.querySelector('#f-status').value;const s=o.querySelector('#f-c');if(s){p.clientId=s.value;p.leave=o.querySelector('#f-l').checked;p.color=col}put('projects',p);render()},
+  modal('Edit project',`<label>Name</label><input id="f-n" value="${esc(p.name)}">${statusField(p,true)}${ownerFields(p,true)}${extra}`,
+    o=>{p.name=o.querySelector('#f-n').value.trim()||p.name;p.status=o.querySelector('#f-status').value;p.ownerId=o.querySelector('#project-owner').value;const s=o.querySelector('#f-c');if(s){p.clientId=s.value;p.leave=o.querySelector('#f-l').checked;p.color=col}put('projects',p);render()},
     built?null:()=>{dropProject(id);render()},'Delete item and its bookings',
     o=>{const sw=o.querySelector('.sw');if(sw)sw.onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;col=b.dataset.c;sw.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))}});
 }
@@ -660,7 +667,7 @@ function openSlot(pid,idx,e,endIdx){
   closePop();
   const person=state.people.find(x=>x.id===pid);if(!person)return;
   const p=document.createElement('div');p.className='pop';p.style.width='290px';
-  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><div id="sl" class="sl"></div><p class="hint">${endIdx!=null?'The booking uses your selected dates. If the project already has dates, only this person gets the selected dates and everyone else keeps the project timeline.':'Client projects keep one timeline for everyone, so a booking on an existing project appears on that project\'s dates.'}</p>`;
+  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><button id="slot-new-project" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>+ New project</button><div id="sl" class="sl"></div><p class="hint">${endIdx!=null?'The booking uses your selected dates. If the project already has dates, only this person gets the selected dates and everyone else keeps the project timeline.':'Client projects keep one timeline for everyone, so a booking on an existing project appears on that project\'s dates.'}</p>`;
   document.body.appendChild(p);
   p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-430))+'px';
   const draw=()=>{
@@ -674,6 +681,7 @@ function openSlot(pid,idx,e,endIdx){
     const oth=state.projects.filter(x=>!client(x.clientId)&&match(x));if(oth.length)html+=`<div class="sh">Time off and other</div>`+oth.map(item).join('');
     p.querySelector('#sl').innerHTML=html||'<p class="hint">No projects match.</p>';
   };
+  p.querySelector('#slot-new-project').onclick=()=>newSlotProject(pid,cols[idx],cols[endIdx!=null?endIdx:addWork(idx,5)],p.querySelector('#sq').value);
   draw();const sq=p.querySelector('#sq');sq.oninput=draw;sq.focus();
   p.querySelector('#sl').onclick=ev=>{
     const d=ev.target.closest('.si');if(!d||d.classList.contains('dis'))return;
@@ -681,8 +689,8 @@ function openSlot(pid,idx,e,endIdx){
     const end=cols[endIdx!=null?endIdx:addWork(idx,5)];
     if(isLinked(pr)){
       if(!pr.start){pr.start=cols[idx];pr.end=end;put('projects',pr);addAssignment(pid,pr.id)}
-      else if(endIdx!=null&&(pr.start!==cols[idx]||pr.end!==end)){const n={id:uid(),person:pid,proj:pr.id,hrs:4,own:true,start:cols[idx],end};state.allocs.push(n);put('allocs',n)}
-      else addAssignment(pid,pr.id);
+      else if(pr.start!==cols[idx]||pr.end!==end){const n={id:uid(),person:pid,proj:pr.id,hrs:4,own:true,start:cols[idx],end};state.allocs.push(n);put('allocs',n)}
+      else addAssignment(pid,pr.id,{start:cols[idx],end});
     }
     else{const n={id:uid(),person:pid,proj:pr.id,start:cols[idx],end,hrs:pr.leave?maxCap(person):4};state.allocs.push(n);put('allocs',n)}
     closePop();render();
@@ -964,10 +972,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-trp]');if(
   render();drawDetails()});
 /* ---------- end Float import ---------- */
 /* ---------- project details pane, assignments, board filter ---------- */
-function addAssignment(pid,projId){
+function addAssignment(pid,projId,dates){
+  if(dates===null)return;
   const pr=proj(projId);if(!pr||state.allocs.some(a=>a.person===pid&&a.proj===projId))return;
   if(isLinked(pr)&&!pr.start){const s=nextWork(lowerBound(todayISO),1);if(s>=0){pr.start=cols[s];pr.end=cols[addWork(s,5)];put('projects',pr)}}
-  const n={id:uid(),person:pid,proj:projId,hrs:4};state.allocs.push(n);put('allocs',n);
+  const n={id:uid(),person:pid,proj:projId,hrs:4,...(dates?{start:dates.start,end:dates.end,own:true}: {})};state.allocs.push(n);put('allocs',n);
 }
 function fillPf(){
   const s=document.getElementById('pf');if(!s)return;
@@ -986,12 +995,12 @@ function drawDetails(){
   const opt=(v,l,cur)=>`<option value="${v}" ${v===cur?'selected':''}>${esc(l)}</option>`;
   const bl=pr.billable===false?'n':'b';
   pane.innerHTML=`<div class="dh"><div><b>Project details</b><br><span class="hint">${c?esc(c.name)+' / ':''}${esc(pr.name)}</span></div><button class="ed" data-dx aria-label="Close">×</button></div>`
-   +`<label>Owner</label><select data-f="ownerId" ${dis}>${opt('','Unassigned',pr.ownerId||'')}${state.people.map(p=>opt(p.id,p.name,pr.ownerId)).join('')}</select>`
+   +`<label>Project Owner</label><select data-f="ownerId" ${dis}>${opt('','Unassigned',pr.ownerId||'')}${state.people.map(p=>opt(p.id,p.name,pr.ownerId)).join('')}</select>`
    +`<label>Project code</label><input data-f="code" value="${esc(pr.code||'')}" ${dis}>`
    +`<label>Stage</label><select data-f="stage" ${dis}>${PSTAGES.map(s=>opt(s,s,pr.stage||'Planning')).join('')}</select>`
    +`<label>Billing</label><select data-f="billable" ${dis}>${opt('b','Billable',bl)}${opt('n','Non-billable',bl)}</select>`
    +(linked?`<div class="two"><div><label>Start</label><input type="date" data-f="start" value="${pr.start||''}" ${dis}></div><div><label>End</label><input type="date" data-f="end" value="${pr.end||''}" ${dis}></div></div>`:`<p class="hint">Dates for this item are set per booking on the chart.</p>`)
-   +`<label>Notes</label><textarea data-f="notes" rows="3" ${dis}>${esc(pr.notes||'')}</textarea>`
+   +ownershipHistory(pr)+`<label>Notes</label><textarea data-f="notes" rows="3" ${dis}>${esc(pr.notes||'')}</textarea>`
    +(linked?`<label>Project team</label>`+(groups.map(g=>{const a=g[0],p=state.people.find(x=>x.id===a.person);if(g.length>1)return `<div class="tm"><span>${esc(p?p.name:'Unknown')}</span><span class="hint">${g.length} bookings</span><button class="ed" data-trp="${a.person}" ${dis} aria-label="Remove from project">\u00d7</button></div>`;return `<div class="tm"><span>${esc(p?p.name:'Unknown')}${a.own?' <span class="hint">(own dates)</span>':''}</span><input type="number" min="0.5" max="16" step="0.5" value="${a.hrs}" data-th="${a.id}" ${dis} aria-label="Hours per day"><span class="hint">h/day</span><button class="ed" data-tr="${a.id}" ${dis} aria-label="Remove from project">×</button></div>`}).join('')||'<p class="hint">Nobody assigned yet.</p>')+(dis||!free.length?'':`<select data-ta><option value="">Add a resource</option>${free.map(p=>opt(p.id,p.name,'')).join('')}</select>`):'');
 }
 document.addEventListener('click',e=>{if(e.target.closest('[data-dx]'))document.getElementById('dpane')?.remove()});
@@ -1154,6 +1163,44 @@ async function boot(){
   try{session=(await API('/api/auth',{action:'me'})).user}catch(e){session=null}
   if(session)startApp();else showLogin();
 }
+function personTextMatch(id){const p=state.people.find(p=>p.id===id);return !!p&&(p.name+' '+(p.role||'')+' '+(p.skills||[]).join(' ')).toLowerCase().includes(filterQ)}
+function projectSearchMatch(id){const p=proj(id);return !!p&&(labelOf(p)+' '+(p.code||'')).toLowerCase().includes(filterQ)}
+function personProjectMatch(person){return state.allocs.some(a=>a.person===person.id&&projectSearchMatch(a.proj))}
+function bookingDates(pop,a){const start=pop.querySelector('#booking-start').value,end=pop.querySelector('#booking-end').value;if(!start||!end||end<start){pop.querySelector('#booking-end').setCustomValidity('Choose an end date on or after the start date.');pop.querySelector('#booking-end').reportValidity();return null}pop.querySelector('#booking-end').setCustomValidity('');return {start,end}}
+function ownerSelect(id,current){return `<select id="${id}"><option value="">Unassigned</option>${state.people.map(p=>`<option value="${esc(p.id)}" ${p.id===current?'selected':''}>${esc(p.name)}</option>`).join('')}</select>`}
+function ownerFields(item,project){return (project?'<label for="project-owner">Project Owner</label>'+ownerSelect('project-owner',item.ownerId):'<label for="client-owner">Client Owner (Delivery Manager)</label>'+ownerSelect('client-owner',item.clientOwnerId)+'<label for="sales-owner">Sales Owner</label>'+ownerSelect('sales-owner',item.salesOwnerId))+ownershipHistory(item)}
+function ownerName(id){return state.people.find(p=>p.id===id)?.name||id||'Unassigned'}
+function ownershipHistory(item){const entries=item.ownershipHistory||[];return '<details class="ownership-log"><summary>Ownership history ('+entries.length+')</summary>'+entries.slice().reverse().map(h=>`<p>${esc(h.label)}: ${esc(h.fromName||ownerName(h.from))} → ${esc(h.toName||ownerName(h.to))}<br>${esc(h.by||'Unknown')} · ${new Date(h.at).toLocaleString('en-GB')}</p>`).join('')+'</details>'}
+function recordOwnership(kind,obj){if(kind!=='clients'&&kind!=='projects')return;let prev={};try{prev=JSON.parse(shadow[kind+'/'+obj.id]||'{}')}catch(e){}const fields=kind==='clients'?[['clientOwnerId','Client Owner'],['salesOwnerId','Sales Owner']]:[['ownerId','Project Owner']];const changes=fields.filter(([f])=>(prev[f]||'')!==(obj[f]||''));if(changes.length){obj.ownershipHistory=[...(prev.ownershipHistory||obj.ownershipHistory||[]),...changes.map(([field,label])=>({field,label,from:prev[field]||'',to:obj[field]||'',fromName:ownerName(prev[field]),toName:ownerName(obj[field]),at:Date.now(),by:me?.name||'Unknown'}))];}}
+function renderSidebar(){
+  const chip=p=>`<div class="chip ${p.leave?'leave':''} ${['inactive','archived'].includes(p.status)?'inactive':''}" data-proj="${esc(p.id)}" title="${esc(p.status||'active')}"><i style="background:${p.leave?'':colorOf(p)}"></i><span class="cn">${esc(p.name)}</span><button class="ed" data-eproj="${esc(p.id)}" aria-label="Edit ${esc(p.name)}">✎</button></div>`;
+  const clientBlock=(c,projects,alias=false,section='')=>`<div class="cg ${['inactive','archived'].includes(c.status)?'inactive':''}" id="${alias?'linked-'+section+'-':'client-'}${esc(c.id)}"><div class="ch"><button class="tg" data-tg="${esc(c.id)}" aria-expanded="${!collapsed[c.id]}" aria-label="Toggle ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><b>${esc(c.name)}</b><button data-eclient="${esc(c.id)}">Edit</button></div>${alias&&(c.status||'active')==='active'?`<button class="ed client-link" data-client-link="${esc(c.id)}">View active client ↗</button>`:''}${collapsed[c.id]?'':projects.map(chip).join('')}${!alias&&!collapsed[c.id]?`<div class="add"><input data-np="${esc(c.id)}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${esc(c.id)}">Add</button></div>`:''}</div>`;
+  const active=sortedClients().filter(c=>!['inactive','archived'].includes(c.status));
+  const owners=new Map();active.forEach(c=>{const id=c.clientOwnerId||'';if(!owners.has(id))owners.set(id,[]);owners.get(id).push(c)});
+  let html=[...owners].sort((a,b)=>!a[0]?1:!b[0]?-1:ownerName(a[0]).localeCompare(ownerName(b[0]))).map(([id,clients])=>`<details class="owner-group" data-section="owner-${esc(id)}" ${sectionOpen('owner-'+id)}><summary>${esc(id?ownerName(id):'Unassigned clients')}</summary>${clients.map(c=>clientBlock(c,state.projects.filter(p=>p.clientId===c.id))).join('')}</details>`).join('');
+  const other=state.projects.filter(p=>!client(p.clientId)&&!['inactive','archived'].includes(p.status));
+  html+=`<details class="lifecycle-section" data-section="other" ${sectionOpen('other')}><summary>Time off and other</summary>${other.map(chip).join('')}<div class="add adm"><input data-np="_" placeholder="New item"><button data-addp="_">Add</button></div></details>`;
+  for(const status of ['inactive','archived']){let content='';for(const c of sortedClients()){const ps=state.projects.filter(p=>p.clientId===c.id&&(c.status===status||p.status===status));if(c.status===status||ps.length)content+=clientBlock(c,ps,true,status)}content+=state.projects.filter(p=>!client(p.clientId)&&p.status===status).map(chip).join('');html+=`<details class="lifecycle-section" data-section="${status}" ${sectionOpen(status)}><summary>${status==='inactive'?'Inactive':'Archived'}</summary>${content||'<p class="hint">No items</p>'}</details>`}
+  document.getElementById('projs').innerHTML=html;
+  document.getElementById('ppl').innerHTML=teamGroups().map(([role,people])=>`<details class="role-group" data-section="role-${esc(role)}" ${sectionOpen('role-'+role)}><summary>${esc(role)} (${people.length})</summary>${people.map(p=>`<div class="hint team-member"><span>${esc(p.name)}</span><button data-rm="${esc(p.id)}" class="danger" aria-label="Remove ${esc(p.name)}">×</button></div>`).join('')}</details>`).join('');
+}
+function sectionOpen(key){return ls.get('section-'+key,true)?'open':''}
+document.addEventListener('toggle',e=>{if(e.target.matches?.('details[data-section]'))ls.set('section-'+e.target.dataset.section,e.target.open)},true);
+document.addEventListener('click',e=>{const link=e.target.closest('[data-client-link]');if(!link)return;const target=document.getElementById('client-'+link.dataset.clientLink);if(target){for(let parent=target.parentElement;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;target.scrollIntoView({block:'nearest'});target.querySelector('button')?.focus()}});
+function newSlotProject(pid,start,end,name){
+  modal('Create project and book resource',`<label>Project name</label><input id="quick-name" value="${esc(name||'')}"><label>Client</label><select id="quick-client"><option value="">Select a client</option>${sortedClients().map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}<option value="__new">+ New client</option></select><div id="quick-client-fields" hidden><label>New client name</label><input id="quick-client-name"></div><label>Project Owner</label>${ownerSelect('quick-owner','')}<div class="two"><div><label>Start date</label><input id="quick-start" type="date" value="${start}"></div><div><label>End date</label><input id="quick-end" type="date" value="${end}"></div></div>`,o=>{const v=id=>o.querySelector('#'+id).value;const name=v('quick-name').trim(),choice=v('quick-client'),start=v('quick-start'),end=v('quick-end');if(!name||!choice||!start||!end||end<start||choice==='__new'&&!v('quick-client-name').trim()){alert('Enter a project name, client and valid dates.');return false}let cid=choice;if(choice==='__new'){const c={id:uid(),name:v('quick-client-name').trim(),status:'active',color:PALETTE[state.clients.length%PALETTE.length],n:Date.now()};cid=c.id;state.clients.push(c);put('clients',c)}const project={id:uid(),name,clientId:cid,ownerId:v('quick-owner'),status:'active',start,end,n:Date.now()};state.projects.push(project);put('projects',project);addAssignment(pid,project.id,{start,end});render()},null,null,o=>{o.querySelector('#quick-client').onchange=e=>o.querySelector('#quick-client-fields').hidden=e.target.value!=='__new';o.querySelector('#quick-name').focus()});
+}
+const holidayCache={};
+function saHolidays(){const result={};const from=Math.max(1995,parse(range.start).getFullYear()-1),to=Math.min(2100,parse(addDays(range.start,range.weeks*7)).getFullYear()+1);for(let year=from;year<=to;year++){if(!holidayCache[year]){const days={};const add=(date,name)=>{days[date]=days[date]?days[date]+' / '+name:name};for(const [md,name] of [['01-01',"New Year's Day"],['03-21','Human Rights Day'],['04-27','Freedom Day'],['05-01',"Workers' Day"],['06-16','Youth Day'],['08-09',"National Women's Day"],['09-24','Heritage Day'],['12-16','Day of Reconciliation'],['12-25','Christmas Day'],['12-26','Day of Goodwill']]){const date=year+'-'+md;add(date,name);if(parse(date).getDay()===0)add(addDays(date,1),name+' (observed)')}const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=(h+l-7*m+114)%31+1,easter=fmt(new Date(year,month-1,day));add(addDays(easter,-2),'Good Friday');add(addDays(easter,1),'Family Day');holidayCache[year]=days}Object.assign(result,holidayCache[year])}if(from<=2026&&to>=2026)result['2026-11-04']='Local Government Election Day';return result}
+function visibleWeek(){const index=Math.max(0,Math.min(cols.length-1,Math.floor((document.getElementById('scroller')?.scrollLeft||0)/DW)));return fmt(mondayOf(parse(cols[index]||todayISO)))}
+function weeklyTotals(person,start){let work=0,leave=0,capacity=0;for(let day=0;day<7;day++){const date=addDays(start,day),index=cols.indexOf(date);if(index<0||capOn(person,index)<=0)continue;capacity+=capOn(person,index);for(const a of state.allocs.filter(a=>a.person===person.id)){const dates=eff(a);if(dates.start<=date&&dates.end>=date){if(proj(a.proj)?.leave)leave+=Number(a.hrs)||0;else work+=Number(a.hrs)||0}}}return {work,leave,capacity}}
+function weeklyFlag(person,start){const {work,leave,capacity}=weeklyTotals(person,start);const over=work+leave>capacity+.001,under=person.emp!=='contractor'&&work+leave<=28;return over?'<span class="util-flag" title="Bookings exceed available hours for the displayed week">⚑ Overbooked</span>':under?'<span class="util-flag under" title="28 hours or less booked, including leave, in the displayed week">⚑ Under utilized</span>':''}
+let zoomWidth=Number(ls.get('zoom-width',40))||40;DW=Math.max(16,Math.min(80,zoomWidth));
+function applyZoom(next){const scroller=document.getElementById('scroller'),day=scroller.scrollLeft/DW;DW=Math.max(16,Math.min(80,next));ls.set('zoom-width',DW);document.body.classList.toggle('zoomed-out',DW<40);document.getElementById('zoom-label').textContent=Math.round(DW/40*100)+'%';render();scroller.scrollLeft=day*DW}
+document.getElementById('zoom-in').onclick=()=>applyZoom(DW+8);document.getElementById('zoom-out').onclick=()=>applyZoom(DW-8);
+document.body.classList.toggle('zoomed-out',DW<40);document.getElementById('zoom-label').textContent=Math.round(DW/40*100)+'%';
+let lastFlagWeek='';document.getElementById('scroller').addEventListener('scroll',()=>{const week=visibleWeek();if(week!==lastFlagWeek&&!drag){lastFlagWeek=week;render()}});
+
 render();goToday();boot();
 </script>
 </body>
