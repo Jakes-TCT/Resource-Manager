@@ -170,6 +170,7 @@ body.zoomed-out .al{font-size:14px}body.zoomed-out .al small{font-size:12px}body
 .al.tent{background:var(--bar-bg);color:var(--bar-ink)}
 aside .team-heading{border-top:2px solid var(--line2);padding-top:16px;margin-top:20px;font-size:16px;font-weight:700;color:var(--ink)}
 aside .team-heading button{font-size:inherit;font-weight:inherit}
+.resource-heading{display:flex;align-items:center;gap:6px}.resource-heading b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.resource-toggle{flex:none;width:24px;height:24px;padding:0;line-height:1;border-color:transparent;background:transparent}.resource-collapsed .who{padding-top:9px;padding-bottom:9px}.resource-collapsed .who>span,.resource-collapsed .tags,.resource-collapsed .bar,.resource-collapsed .rh{display:none}.resource-collapsed .track{pointer-events:none}
 </style>
 <script>
 try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}
@@ -229,6 +230,8 @@ function seed(){
 }
 let state={clients:[],holidays:[],users:[],projects:[],people:[],allocs:[]};
 let filterQ='';
+let collapsedResources={};try{const saved=JSON.parse(localStorage.getItem('planner-collapsed-resources')||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))collapsedResources=saved}catch(e){}
+document.addEventListener('click',e=>{const button=e.target.closest('[data-collapse-resource]');if(!button)return;e.preventDefault();e.stopImmediatePropagation();const id=button.dataset.collapseResource;collapsedResources[id]=!collapsedResources[id];try{localStorage.setItem('planner-collapsed-resources',JSON.stringify(collapsedResources))}catch(err){}render();document.querySelectorAll('[data-collapse-resource]').forEach(b=>{if(b.dataset.collapseResource===id)b.focus()})},true);
 let rowH={};try{rowH=JSON.parse(localStorage.getItem('planner-rowh')||'{}')}catch(e){}
 const saveRowH=()=>{try{localStorage.setItem('planner-rowh',JSON.stringify(rowH))}catch(e){}};
 const ls={get(k,d){try{const v=localStorage.getItem('planner-'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('planner-'+k,JSON.stringify(v))}catch(e){}}};
@@ -337,7 +340,7 @@ function render(){
     mine.forEach(x=>{let y=0;for(let i=x.s[0];i<=x.s[1];i++)y=Math.max(y,stk[i]);x.y=y;for(let i=x.s[0];i<=x.s[1];i++){stk[i]=y+x.a.hrs;if(!offP[i]){dayAll[i]=(dayAll[i]||0)+x.a.hrs;if(!proj(x.a.proj)?.leave)day[i]=(day[i]||0)+x.a.hrs}}
       });
     const peak=Math.max(maxCap(p),...stk),PPH=22;
-    const h=rowH[p.id]?Math.max(44,rowH[p.id]):PAD*2+peak*PPH;
+    const collapsed=!!collapsedResources[p.id];const h=collapsed?44:(rowH[p.id]?Math.max(44,rowH[p.id]):PAD*2+peak*PPH);
     const pph=(h-PAD*2)/peak;
     let util=0;thisWk.forEach(i=>util+=day[i]||0);let capw=0;thisWk.forEach(i=>capw+=capOn(p,i));const pct=Math.round(util/Math.max(1,capw)*100);const flag=weeklyFlag(p,weekStart);
     let tr='';
@@ -346,9 +349,9 @@ function render(){
     for(let w=0;w<range.weeks;w++)tr+=`<div class="wkl" style="left:${w*7*DW}px"></div>`;
     cols.forEach((c,i)=>{if(offP[i])tr+=`<div class="off${offA[i]===2?' hol':''}" style="left:${i*DW}px;width:${DW}px"></div>`});
     cols.forEach((date,i)=>{const leave=state.allocs.filter(a=>a.person===p.id&&proj(a.proj)?.leave&&eff(a).start<=date&&eff(a).end>=date).reduce((n,a)=>n+Number(a.hrs||0),0);if(leave>=8)tr+=`<div class="leave-day" style="left:${i*DW}px;width:${DW}px" title="Full day unavailable"></div>`});
-    mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};segs(x.s[0],x.s[1],offP).forEach(([si,sj],k,arr)=>{
+    if(!collapsed)mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};segs(x.s[0],x.s[1],offP).forEach(([si,sj],k,arr)=>{
       tr+=`<div class="al ${pr.leave?'leave':(effectiveBookingStatus(x.a)==='tentative'?'tent':'')}${x.a.hrs*pph<36?' sh':''}" data-id="${x.a.id}" title="${esc(barName(pr,p)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${si*DW+1}px;width:${(sj-si+1)*DW-2}px;top:${PAD+x.y*pph}px;height:${Math.max(12,x.a.hrs*pph-2)}px;--c:${colorOf(pr)};${barAppearance(pr,x.a)}"><span class="nm"${x.a.hrs*pph>=52?' style="white-space:normal"':''}>${x.a.hrs*pph>=52?barTall(pr,p):esc(barName(pr,p))}</span><small>${x.a.hrs}h/day${!pr.leave&&effectiveBookingStatus(x.a)==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
-    html+=`<div class="row" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><b>${esc(p.name)}</b>${flag}<span>${esc(p.role||'')} · ${pct}% selected week</span><div class="tags">${dayLabel(p)?'<em>'+esc(dayLabel(p))+'</em>':''}${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
+    html+=`<div class="row${collapsed?' resource-collapsed':''}" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><div class="resource-heading"><button type="button" class="resource-toggle" data-collapse-resource="${esc(p.id)}" aria-expanded="${!collapsed}" aria-label="${collapsed?'Expand':'Collapse'} row for ${esc(p.name)}" title="${collapsed?'Expand':'Collapse'} resource row">${collapsed?'&#9656;':'&#9662;'}</button><b>${esc(p.name)}</b></div>${flag}<span>${esc(p.role||'')} · ${pct}% selected week</span><div class="tags">${dayLabel(p)?'<em>'+esc(dayLabel(p))+'</em>':''}${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
   });
   if(!state.people.length)html+='<div class="empty">'+(db&&!synced?'Loading the shared plan…':'Add a team member in the sidebar to start planning.')+'</div>';
   el.innerHTML=html;
@@ -1195,16 +1198,16 @@ function personProjectMatch(person){return state.allocs.some(a=>a.person===perso
 function bookingDates(pop,a){const start=pop.querySelector('#booking-start').value,end=pop.querySelector('#booking-end').value;if(!start||!end||end<start){pop.querySelector('#booking-end').setCustomValidity('Choose an end date on or after the start date.');pop.querySelector('#booking-end').reportValidity();return null}pop.querySelector('#booking-end').setCustomValidity('');return {start,end}}
 const FIXED_OWNERS=[{id:'named:talhah-jeewa',name:'Talhah Jeewa'},{id:'named:damon-king',name:'Damon King'},{id:'named:emil-hickley',name:'Emil Hickley'}];
 function ownerChoices(kind){
-  const role=p=>(p.role||'').trim().toLowerCase().replace(/\s+/g,' ');
-  const managers=state.people.filter(p=>/^delivery managers?$/.test(role(p)));
-  const leads=state.people.filter(p=>/^delivery leads?$/.test(role(p)));
+  const role=p=>String(p.role||'').normalize('NFKC').toLowerCase().replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/[-\u2010-\u2015_/]+/g,' ').replace(/\s+/g,' ').trim();
+  const managers=state.people.filter(p=>/\bdelivery managers?\b/.test(role(p)));
+  const leads=state.people.filter(p=>/\bdelivery leads?\b/.test(role(p)));
   const fixed=FIXED_OWNERS.map(owner=>state.people.find(p=>p.name.trim().toLowerCase()===owner.name.toLowerCase())||owner);
-  const options=kind==='sales'?fixed:kind==='client'?[...managers,...fixed]:[...managers,...leads];
+  const options=kind==='sales'?fixed:kind==='client'?[...managers,...leads,...fixed]:[...managers,...leads];
   return [...new Map(options.map(p=>[p.name.trim().toLowerCase(),p])).values()].sort((a,b)=>a.name.localeCompare(b.name));
 }
 function ownerOptions(current,kind){const options=ownerChoices(kind);return '<option value="">Unassigned</option>'+(current&&!options.some(p=>p.id===current)?`<option value="${esc(current)}" selected disabled hidden>${esc(ownerName(current))} (previous assignment)</option>`:'')+options.map(p=>`<option value="${esc(p.id)}" ${p.id===current?'selected':''}>${esc(p.name)}</option>`).join('')}
 function ownerSelect(id,current,kind='project'){return `<select id="${id}">${ownerOptions(current,kind)}</select>`}
-function ownerFields(item,project){return (project?'<label for="project-owner">Project Owner</label>'+ownerSelect('project-owner',item.ownerId):'<label for="client-owner">Client Owner (Delivery Manager)</label>'+ownerSelect('client-owner',item.clientOwnerId,'client')+'<label for="sales-owner">Sales Owner</label>'+ownerSelect('sales-owner',item.salesOwnerId,'sales'))+ownershipHistory(item)}
+function ownerFields(item,project){return (project?'<label for="project-owner">Project Owner</label>'+ownerSelect('project-owner',item.ownerId):'<label for="client-owner">Client Owner</label>'+ownerSelect('client-owner',item.clientOwnerId,'client')+'<label for="sales-owner">Sales Owner</label>'+ownerSelect('sales-owner',item.salesOwnerId,'sales'))+ownershipHistory(item)}
 function ownerName(id){return state.people.find(p=>p.id===id)?.name||FIXED_OWNERS.find(p=>p.id===id)?.name||id||'Unassigned'}
 function ownershipHistory(item){const entries=item.ownershipHistory||[];return '<details class="ownership-log"><summary>Ownership history ('+entries.length+')</summary>'+entries.slice().reverse().map(h=>`<p>${esc(h.label)}: ${esc(h.fromName||ownerName(h.from))} → ${esc(h.toName||ownerName(h.to))}<br>${esc(h.by||'Unknown')} · ${new Date(h.at).toLocaleString('en-GB')}</p>`).join('')+'</details>'}
 function recordOwnership(kind,obj){if(kind!=='clients'&&kind!=='projects')return;let prev={};try{prev=JSON.parse(shadow[kind+'/'+obj.id]||'{}')}catch(e){}const fields=kind==='clients'?[['clientOwnerId','Client Owner'],['salesOwnerId','Sales Owner']]:[['ownerId','Project Owner']];const changes=fields.filter(([f])=>(prev[f]||'')!==(obj[f]||''));if(changes.length){obj.ownershipHistory=[...(prev.ownershipHistory||obj.ownershipHistory||[]),...changes.map(([field,label])=>({field,label,from:prev[field]||'',to:obj[field]||'',fromName:ownerName(prev[field]),toName:ownerName(obj[field]),at:Date.now(),by:me?.name||'Unknown'}))];}}
