@@ -101,7 +101,7 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
 .sg{border:1px solid var(--line2);border-radius:8px;margin-top:4px;background:var(--panel);overflow:hidden}.sg div{padding:6px 10px;cursor:pointer}.sg div:hover{background:var(--bg)}
 .act{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:12px;font-size:12px}.act a{color:var(--accent);cursor:pointer;white-space:nowrap}
 .hr{padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}#hl{max-height:140px;overflow:auto;margin-top:6px}
-.pop.lim #sg,.pop.lim .ch2 b{display:none}.pop.lim label[for=pa]{display:block}
+.pop.lim #sg,.pop.lim .ch2 b,.pop.lim #pfw{display:none}.pop.lim label[for=pa]{display:block}
 .wdr{display:flex;align-items:center;gap:8px;padding:4px 0}.wdr .ck{flex:1}.dlg .wdr input[type=number]{width:70px}
 
 .track{cursor:cell}
@@ -213,7 +213,7 @@ const client=id=>state.clients.find(c=>c.id===id);
 const colorOf=p=>p.leave?'#9aa1b5':(client(p.clientId)?.color||p.color||'#5c6370');
 const labelOf=p=>{const c=client(p.clientId);return c?c.name+' / '+p.name:p.name};
 const isLinked=p=>!!p&&!p.leave&&!!client(p.clientId);
-const eff=a=>{const pr=proj(a.proj);return isLinked(pr)&&pr.start&&pr.end?{...a,start:pr.start,end:pr.end}:a};
+const eff=a=>{const pr=proj(a.proj);return isLinked(pr)&&pr.start&&pr.end&&!a.own?{...a,start:pr.start,end:pr.end}:a};
 const visAlloc=a=>{if(!pf)return true;const pr=proj(a.proj);if(!pr)return false;return pf[0]==='c'?pr.clientId===pf.slice(2):a.proj===pf.slice(2)};
 let offA=[],holMap={};
 const nextWork=(i,dir)=>{i=Math.max(0,Math.min(i,cols.length-1));while(i>=0&&i<cols.length&&offA[i])i+=dir;return i<0||i>=cols.length?-1:i};
@@ -334,7 +334,7 @@ document.addEventListener('pointerup',e=>{
   if(!d.moved){if(d.bar)openPop(d.id,e);else if(d.proj)openDetails(d.proj);return}
   if(d.a==null||!d.track)return;
   if(d.type==='new'){const pr=proj(d.proj),pid=d.track.dataset.p;if(isLinked(pr)){if(!pr.start){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr)}addAssignment(pid,d.proj)}else{const n={id:uid(),person:pid,proj:d.proj,start:cols[d.a],end:cols[d.b],hrs:pr&&pr.leave?8:4};state.allocs.push(n);put('allocs',n)}}
-  else{const al=state.allocs.find(x=>x.id===d.id);if(!al)return;const pr=proj(al.proj),pid=d.track.dataset.p;if(isLinked(pr)){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr);if(d.type==='move'&&pid!==al.person&&!state.allocs.some(b=>b.person===pid&&b.proj===al.proj)){al.person=pid;put('allocs',al)}}else{al.start=cols[d.a];al.end=cols[d.b];if(d.type==='move')al.person=pid;put('allocs',al)}}
+  else{const al=state.allocs.find(x=>x.id===d.id);if(!al)return;const pr=proj(al.proj),pid=d.track.dataset.p;if(isLinked(pr)&&!al.own){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr);if(d.type==='move'&&pid!==al.person&&!state.allocs.some(b=>b.person===pid&&b.proj===al.proj)){al.person=pid;put('allocs',al)}}else{al.start=cols[d.a];al.end=cols[d.b];if(d.type==='move'&&(!isLinked(pr)||!state.allocs.some(b=>b!==al&&b.person===pid&&b.proj===al.proj)))al.person=pid;put('allocs',al)}}
   render();
 });
 
@@ -349,10 +349,11 @@ function openPop(id,e){
   const freeP=linked?state.people.filter(q=>!team.some(b=>b.person===q.id)):[];
   const hist=[...(a.hist||[]),...((prj&&prj.hist)||[])].sort((x,y)=>y.at-x.at);
   const histHtml=hist.length?`<div class="act"><span class="hint">\u26a1 Updated by <b>${esc(hist[0].by)}</b> ${ago(hist[0].at)}</span><a id="pvc" role="button" tabindex="0">View changes</a></div><div id="hl" hidden>${hist.slice(0,10).map(h=>`<div class="hr"><b>${esc(h.by)}</b> ${esc(h.text)}<br><span class="hint">${ago(h.at)}</span></div>`).join('')}</div>`:`<div class="act"><span class="hint">\u26a1 No changes recorded yet</span></div>`;
+  const ownHtml=a.own?`<div class="act"><span class="hint">Own dates: ${fmtD(a.start)} \u2013 ${fmtD(a.end)}</span><a id="pfw" role="button" tabindex="0">Follow project dates</a></div>`:'';
   const assignHtml=linked?`<label for="pa">Assigned to</label><div class="as" id="as">${team.map(b=>{const q=state.people.find(x=>x.id===b.person);return `<span class="ch2">${esc(q?q.name:'Unknown')}<b data-rm2="${b.id}" role="button" aria-label="Remove from project">\u00d7</b></span>`}).join('')}<input id="pa" placeholder="${team.length?'Add people':'Add people to this project'}" autocomplete="off"></div><div id="sg" class="sg" hidden></div>`:'';
   const opt=x=>`<option value="${x.id}" ${x.id===a.proj?'selected':''}>${esc(x.name)}</option>`;
   const optg=state.clients.map(c=>`<optgroup label="${esc(c.name)}">${state.projects.filter(x=>x.clientId===c.id).map(opt).join('')}</optgroup>`).join('')+state.projects.filter(x=>!client(x.clientId)).map(opt).join('');
-  p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
+  p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${ownHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
   document.body.appendChild(p);
   p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-520))+'px';
   if(!atLeast('manager'))p.classList.add('lim');
@@ -365,6 +366,7 @@ function openPop(id,e){
     sg.onpointerdown=ev=>{const d=ev.target.closest('[data-add]');if(!d)return;ev.preventDefault();addAssignment(d.dataset.add,a.proj);reopen()};
   }
   p.querySelectorAll('[data-rm2]').forEach(x=>x.onclick=()=>{const bid=x.dataset.rm2;state.allocs=state.allocs.filter(b=>b.id!==bid);del('allocs',bid);if(bid===id){closePop();render()}else reopen()});
+  const pfw=p.querySelector('#pfw');if(pfw)pfw.onclick=()=>{delete a.own;delete a.start;delete a.end;put('allocs',a);closePop();render()};
   const pvc=p.querySelector('#pvc');if(pvc)pvc.onclick=()=>{const l=p.querySelector('#hl');l.hidden=!l.hidden};
   p.querySelector('#st').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;p.querySelectorAll('#st button').forEach(x=>x.classList.toggle('on',x===b))};
   p.querySelector('#ph').focus();
@@ -577,14 +579,14 @@ function openSlot(pid,idx,e,endIdx){
   closePop();
   const person=state.people.find(x=>x.id===pid);if(!person)return;
   const p=document.createElement('div');p.className='pop';p.style.width='290px';
-  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><div id="sl" class="sl"></div><p class="hint">Client projects keep one timeline for everyone, so a booking on an existing project appears on that project's dates.</p>`;
+  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><div id="sl" class="sl"></div><p class="hint">${endIdx!=null?'The booking uses your selected dates. If the project already has dates, only this person gets the selected dates and everyone else keeps the project timeline.':'Client projects keep one timeline for everyone, so a booking on an existing project appears on that project\'s dates.'}</p>`;
   document.body.appendChild(p);
   p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-430))+'px';
   const draw=()=>{
     const q=p.querySelector('#sq').value.trim().toLowerCase();
     const match=pr=>!q||(labelOf(pr)+' '+(pr.code||'')).toLowerCase().includes(q);
     const item=pr=>{const linked=isLinked(pr),taken=linked&&state.allocs.some(a=>a.person===pid&&a.proj===pr.id);
-      const sub=taken?'Already on this project':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):(endIdx!=null?'Uses your selected dates':'Starts here'));
+      const sub=taken?'Already on this project':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):(endIdx!=null?(linked&&pr.start?'Your dates, for this person only':'Uses your selected dates'):'Starts here'));
       return `<div class="si${taken?' dis':''}" data-p="${pr.id}"><i style="background:${pr.leave?'#9aa1b5':colorOf(pr)}"></i><span>${esc(unav(pr,person)?'Unavailable':pr.name)}<br><span class="hint">${sub}</span></span></div>`};
     let html='';
     for(const c of state.clients){const ps=state.projects.filter(x=>x.clientId===c.id&&match(x));if(ps.length)html+=`<div class="sh">${esc(c.name)}</div>`+ps.map(item).join('')}
@@ -596,7 +598,11 @@ function openSlot(pid,idx,e,endIdx){
     const d=ev.target.closest('.si');if(!d||d.classList.contains('dis'))return;
     const pr=proj(d.dataset.p);if(!pr)return;
     const end=cols[endIdx!=null?endIdx:addWork(idx,5)];
-    if(isLinked(pr)){if(!pr.start){pr.start=cols[idx];pr.end=end;put('projects',pr)}addAssignment(pid,pr.id)}
+    if(isLinked(pr)){
+      if(!pr.start){pr.start=cols[idx];pr.end=end;put('projects',pr);addAssignment(pid,pr.id)}
+      else if(endIdx!=null&&(pr.start!==cols[idx]||pr.end!==end)){const n={id:uid(),person:pid,proj:pr.id,hrs:4,own:true,start:cols[idx],end};state.allocs.push(n);put('allocs',n)}
+      else addAssignment(pid,pr.id);
+    }
     else{const n={id:uid(),person:pid,proj:pr.id,start:cols[idx],end,hrs:pr.leave?maxCap(person):4};state.allocs.push(n);put('allocs',n)}
     closePop();render();
   };
@@ -761,7 +767,7 @@ function drawDetails(){
    +`<label>Billing</label><select data-f="billable" ${dis}>${opt('b','Billable',bl)}${opt('n','Non-billable',bl)}</select>`
    +(linked?`<div class="two"><div><label>Start</label><input type="date" data-f="start" value="${pr.start||''}" ${dis}></div><div><label>End</label><input type="date" data-f="end" value="${pr.end||''}" ${dis}></div></div>`:`<p class="hint">Dates for this item are set per booking on the chart.</p>`)
    +`<label>Notes</label><textarea data-f="notes" rows="3" ${dis}>${esc(pr.notes||'')}</textarea>`
-   +(linked?`<label>Project team</label>`+(team.map(a=>{const p=state.people.find(x=>x.id===a.person);return `<div class="tm"><span>${esc(p?p.name:'Unknown')}</span><input type="number" min="0.5" max="16" step="0.5" value="${a.hrs}" data-th="${a.id}" ${dis} aria-label="Hours per day"><span class="hint">h/day</span><button class="ed" data-tr="${a.id}" ${dis} aria-label="Remove from project">×</button></div>`}).join('')||'<p class="hint">Nobody assigned yet.</p>')+(dis||!free.length?'':`<select data-ta><option value="">Add a resource</option>${free.map(p=>opt(p.id,p.name,'')).join('')}</select>`):'');
+   +(linked?`<label>Project team</label>`+(team.map(a=>{const p=state.people.find(x=>x.id===a.person);return `<div class="tm"><span>${esc(p?p.name:'Unknown')}${a.own?' <span class="hint">(own dates)</span>':''}</span><input type="number" min="0.5" max="16" step="0.5" value="${a.hrs}" data-th="${a.id}" ${dis} aria-label="Hours per day"><span class="hint">h/day</span><button class="ed" data-tr="${a.id}" ${dis} aria-label="Remove from project">×</button></div>`}).join('')||'<p class="hint">Nobody assigned yet.</p>')+(dis||!free.length?'':`<select data-ta><option value="">Add a resource</option>${free.map(p=>opt(p.id,p.name,'')).join('')}</select>`):'');
 }
 document.addEventListener('click',e=>{if(e.target.closest('[data-dx]'))document.getElementById('dpane')?.remove()});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-tr]');if(!b||!atLeast('manager'))return;const a=state.allocs.find(x=>x.id===b.dataset.tr);if(!a)return;state.allocs=state.allocs.filter(x=>x!==a);del('allocs',a.id);render();drawDetails()});
