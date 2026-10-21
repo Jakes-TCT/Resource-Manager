@@ -155,6 +155,15 @@ body.resizing-pane{cursor:col-resize;user-select:none}
 .ownership-log{max-height:150px;overflow:auto;margin-top:8px}.ownership-log p{font-size:11px;color:var(--mute);border-top:1px solid var(--line)}
 .skill-picker{border:1px solid var(--line2);border-radius:6px;padding:8px;max-height:220px;overflow:auto}.skill-picker summary{cursor:pointer}
 body.zoomed-out .al{font-size:14px}body.zoomed-out .al small{font-size:12px}body.zoomed-out .al .nm{white-space:normal;overflow-wrap:anywhere}
+
+.team-member .team-name{flex:1;min-width:0;border:none;background:none;padding:2px 0;color:var(--ink);text-align:left;white-space:normal;overflow-wrap:anywhere;font-size:12px}
+.team-member .team-name:hover:not(:disabled){color:var(--accent);text-decoration:underline}
+.team-member .team-name:disabled{cursor:default}
+#ppl .lifecycle-section .team-name{color:var(--mute)}
+
+.team-filters{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 10px}.team-filters button{font-size:11px;padding:5px 7px}
+.team-filters button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.work-days{margin-top:12px;border:1px solid var(--line2);border-radius:6px;padding:8px}.work-days summary{cursor:pointer;color:var(--mute);font-size:12px}
 </style>
 <script>
 try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}
@@ -177,6 +186,7 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
     <div class="add"><input id="nc" placeholder="New client" aria-label="New client name"><button id="addc">Add</button></div>
     <h2 class="team-heading"><button id="team-toggle" aria-expanded="true" aria-controls="team-list"><span id="team-chevron" aria-hidden="true">▾</span>Team</button></h2>
     <div id="team-list">
+    <div id="team-filters" class="team-filters" role="group" aria-label="Filter Team resources"></div>
     <div id="ppl"></div>
     <div class="add"><input id="nm" placeholder="New person" aria-label="New person name"><button id="addm">Add</button></div>
     </div>
@@ -223,7 +233,7 @@ let myRole=null,myId=null,me=null,isOwnerFlag=false,usersReady=false,bootWrote=f
 const BOOT=[];
 const rank={contributor:1,manager:2,admin:3};
 let pf='';
-const STG={active:'Active',hired:'Hired, starting soon',offer:'Offer made',interview:'Interviewing',screening:'Screening',sourcing:'Sourcing'};
+const STG={active:'Active',hired:'Hired, starting soon',offer:'Offer made',interview:'Interviewing',screening:'Screening',sourcing:'Sourcing',inactive:'Inactive',archived:'Archived'};
 const atLeast=r=>(rank[myRole]||0)>=rank[r];
 const matches=p=>(!filterQ||personProjectMatch(p)||(p.name+' '+(p.role||'')+' '+(p.emp||'')+' '+(p.stage&&p.stage!=='active'?STG[p.stage]:'')+' '+(p.skills||[]).join(' ')).toLowerCase().includes(filterQ))&&(!skillSel.size||(p.skills||[]).some(s=>skillSel.has(s)));
 const sortedPeople=()=>{const l=state.people.filter(matches).filter(p=>!pf||state.allocs.some(a=>a.person===p.id&&visAlloc(a)));if(sortBy==='name')l.sort((a,b)=>a.name.localeCompare(b.name));else if(sortBy==='name-desc')l.sort((a,b)=>b.name.localeCompare(a.name));else if(sortBy==='title')l.sort((a,b)=>(a.role||'~').localeCompare(b.role||'~')||a.name.localeCompare(b.name));return l};
@@ -289,9 +299,9 @@ function ago(t){
   const mo=Math.round(d/30);return 'about '+mo+(mo===1?' month':' months')+' ago';
 }
 
-function teamGroups(){
+function teamGroups(people=state.people){
   const groups=new Map();
-  for(const person of state.people){
+  for(const person of people){
     const role=(person.role||'').trim();
     const key=role.toLowerCase().replace(/\s+/g,' ');
     const aliases={'solution architect':'Solutions Architects','solutions architect':'Solutions Architects','solution architects':'Solutions Architects','solutions architects':'Solutions Architects','delivery manager':'Delivery Managers','delivery managers':'Delivery Managers','developer':'Developers','developers':'Developers','business analyst':'Business Analysts','business analysts':'Business Analysts'};
@@ -468,13 +478,15 @@ function openPerson(id){
   const known=[...new Set(state.people.flatMap(x=>x.skills||[]))].sort((a,b)=>a.localeCompare(b));
   const dm=daysOf(p),NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const daysHtml=[1,2,3,4,5,6,0].map(d=>{const on=(Number(dm[d])||0)>0;return `<div class="wdr"><label class="ck"><input type="checkbox" data-d="${d}" ${on?'checked':''}> ${NAMES[d]}</label><input type="number" min="0.5" max="16" step="0.5" data-h="${d}" value="${on?dm[d]:(p.cap||8)}" ${on?'':'disabled'} aria-label="${NAMES[d]} hours"><span class="hint">h</span></div>`}).join('');
-  modal('Edit team member',`<label>Name</label><input id="f-n" value="${esc(p.name)}"><label>Job title</label><input id="f-r" value="${esc(p.role||'')}"><label>Employment</label><select id="f-e"><option value="permanent" ${p.emp!=='contractor'?'selected':''}>Permanent</option><option value="contractor" ${p.emp==='contractor'?'selected':''}>Contractor</option></select><label>Recruitment stage</label><select id="f-s">${Object.entries(STG).map(([k,v])=>`<option value="${k}" ${(p.stage||'active')===k?'selected':''}>${v}</option>`).join('')}</select><label>Capacity (hours per day)</label><input id="f-c" type="number" min="1" max="24" step="0.5" value="${p.cap||8}"><label>Work days</label><div id="wd">${daysHtml}</div><label>Skills</label><details class="skill-picker"><summary>Select existing skills</summary><div id="skill-checks">${known.map(skill=>`<label class="ck"><input type="checkbox" data-skill="${esc(skill)}" ${sk.includes(skill)?'checked':''}>${esc(skill)}</label>`).join('')}</div></details><div id="tg" class="tags big"></div><input id="ti" list="skl" placeholder="Type a skill, press Enter"><datalist id="skl">${known.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`,
+  modal('Edit team member',`<label>Name</label><input id="f-n" value="${esc(p.name)}"><label>Job title</label><input id="f-r" value="${esc(p.role||'')}"><label>Employment</label><select id="f-e"><option value="permanent" ${p.emp!=='contractor'?'selected':''}>Permanent</option><option value="contractor" ${p.emp==='contractor'?'selected':''}>Contractor</option></select><label>Employment Status</label><select id="f-s">${Object.entries(STG).map(([k,v])=>`<option value="${k}" ${(p.stage||'active')===k?'selected':''}>${v}</option>`).join('')}</select><label>Capacity (hours per day)</label><input id="f-c" type="number" min="1" max="24" step="0.5" value="${p.cap||8}"><details class="work-days"><summary>Work days</summary><div id="wd">${daysHtml}</div></details><label>Skills</label><details class="skill-picker"><summary>Select skills</summary><div id="skill-checks">${known.map(skill=>`<label class="ck"><input type="checkbox" data-skill="${esc(skill)}" ${sk.includes(skill)?'checked':''}>${esc(skill)}</label>`).join('')}</div><button type="button" id="new-skill" style="margin-top:8px">+ New skill</button><div id="new-skill-form" hidden><label for="ti">New skill name</label><div class="add"><input id="ti" aria-label="New skill name"><button type="button" id="add-skill">Add</button></div></div></details><div id="tg" class="tags big"></div>`,
     o=>{addTag();p.name=o.querySelector('#f-n').value.trim()||p.name;p.role=o.querySelector('#f-r').value.trim();p.cap=Math.max(1,parseFloat(o.querySelector('#f-c').value)||8);p.skills=sk;{const dd={};o.querySelectorAll('[data-d]').forEach(c=>{if(c.checked){const h=parseFloat(o.querySelector('[data-h="'+c.dataset.d+'"]').value)||p.cap||8;dd[c.dataset.d]=Math.max(.5,Math.min(16,h))}});p.days=Object.keys(dd).length?dd:daysOf({cap:p.cap})}p.emp=o.querySelector('#f-e').value;p.stage=o.querySelector('#f-s').value;put('people',p);render()},
     ()=>{state.allocs.filter(a=>a.person===id).forEach(a=>del('allocs',a.id));state.allocs=state.allocs.filter(a=>a.person!==id);state.people=state.people.filter(x=>x.id!==id);del('people',id);render()},'Remove person and bookings',
     o=>{o.querySelector('#wd').onchange=e=>{const c=e.target.closest('[data-d]');if(!c)return;const h=o.querySelector('[data-h="'+c.dataset.d+'"]');h.disabled=!c.checked;if(c.checked&&!parseFloat(h.value))h.value=o.querySelector('#f-c').value||8};const box=o.querySelector('#tg'),inp=o.querySelector('#ti');
       o.querySelector('#skill-checks').onchange=e=>{const skill=e.target.dataset.skill;if(!skill)return;if(e.target.checked&&!sk.includes(skill))sk.push(skill);else if(!e.target.checked)sk=sk.filter(x=>x!==skill);draw()};
-      const draw=()=>{o.querySelectorAll('[data-skill]').forEach(x=>x.checked=sk.includes(x.dataset.skill));box.innerHTML=sk.map((s,i)=>`<em>${esc(s)} <a data-i="${i}" role="button" aria-label="Remove ${esc(s)}">×</a></em>`).join('')};
-      addTag=()=>{inp.value.split(',').map(s=>s.trim()).filter(s=>s&&!sk.includes(s)).forEach(s=>sk.push(s));inp.value='';draw()};
+      const draw=()=>{o.querySelector('#skill-checks').innerHTML=known.slice().sort((a,b)=>a.localeCompare(b)).map(skill=>`<label class="ck"><input type="checkbox" data-skill="${esc(skill)}" ${sk.includes(skill)?'checked':''}>${esc(skill)}</label>`).join('');box.innerHTML=sk.map((s,i)=>`<em>${esc(s)} <a data-i="${i}" role="button" aria-label="Remove ${esc(s)}">×</a></em>`).join('')};
+      addTag=()=>{inp.value.split(',').map(s=>s.trim()).filter(Boolean).forEach(value=>{let skill=known.find(s=>s.toLowerCase()===value.toLowerCase());if(!skill){skill=value;known.push(skill)}if(!sk.includes(skill))sk.push(skill)});inp.value='';draw()};
+      o.querySelector('#new-skill').onclick=()=>{o.querySelector('#new-skill-form').hidden=false;inp.focus()};
+      o.querySelector('#add-skill').onclick=()=>{addTag();o.querySelector('#new-skill-form').hidden=true};
       inp.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();addTag()}});
       box.addEventListener('click',e=>{const a=e.target.closest('[data-i]');if(a){sk.splice(+a.dataset.i,1);draw()}});draw()});
 }
@@ -598,7 +610,7 @@ function describe(kind,id,obj,old){
     if(chg('name'))out.push(`renamed ${old.name} to ${obj.name}`);
     if(chg('role'))out.push(`changed the job title of ${n} to ${obj.role||'none'}`);
     if(chg('emp'))out.push(`marked ${n} as ${obj.emp||'permanent'}`);
-    if(chg('stage'))out.push(`set the recruitment stage of ${n} to ${STG[obj.stage]||obj.stage}`);
+    if(chg('stage'))out.push(`set the employment status of ${n} to ${STG[obj.stage]||obj.stage}`);
     if(chg('cap'))out.push(`changed the daily capacity of ${n} to ${obj.cap}h`);
     if(chg('days'))out.push(`changed the work days of ${n}`);
     if(chg('skills'))out.push(`changed the skills of ${n}`);
@@ -1163,6 +1175,10 @@ async function boot(){
   try{session=(await API('/api/auth',{action:'me'})).user}catch(e){session=null}
   if(session)startApp();else showLogin();
 }
+let teamCategories=ls.get('team-categories',['employees','contractors','recruiting']);
+if(!Array.isArray(teamCategories))teamCategories=['employees','contractors','recruiting'];
+function teamCategory(person){return ['hired','offer','interview','screening','sourcing'].includes(person.stage)?'recruiting':person.emp==='contractor'?'contractors':'employees'}
+document.getElementById('team-filters').addEventListener('click',e=>{const button=e.target.closest('[data-team-filter]');if(!button)return;const key=button.dataset.teamFilter;teamCategories=teamCategories.includes(key)?teamCategories.filter(x=>x!==key):[...teamCategories,key];ls.set('team-categories',teamCategories);renderSidebar()});
 function personTextMatch(id){const p=state.people.find(p=>p.id===id);return !!p&&(p.name+' '+(p.role||'')+' '+(p.skills||[]).join(' ')).toLowerCase().includes(filterQ)}
 function projectSearchMatch(id){const p=proj(id);return !!p&&(labelOf(p)+' '+(p.code||'')).toLowerCase().includes(filterQ)}
 function personProjectMatch(person){return state.allocs.some(a=>a.person===person.id&&projectSearchMatch(a.proj))}
@@ -1182,7 +1198,14 @@ function renderSidebar(){
   html+=`<details class="lifecycle-section" data-section="other" ${sectionOpen('other')}><summary>Time off and other</summary>${other.map(chip).join('')}<div class="add adm"><input data-np="_" placeholder="New item"><button data-addp="_">Add</button></div></details>`;
   for(const status of ['inactive','archived']){let content='';for(const c of sortedClients()){const ps=state.projects.filter(p=>p.clientId===c.id&&(c.status===status||p.status===status));if(c.status===status||ps.length)content+=clientBlock(c,ps,true,status)}content+=state.projects.filter(p=>!client(p.clientId)&&p.status===status).map(chip).join('');html+=`<details class="lifecycle-section" data-section="${status}" ${sectionOpen(status)}><summary>${status==='inactive'?'Inactive':'Archived'}</summary>${content||'<p class="hint">No items</p>'}</details>`}
   document.getElementById('projs').innerHTML=html;
-  document.getElementById('ppl').innerHTML=teamGroups().map(([role,people])=>`<details class="role-group" data-section="role-${esc(role)}" ${sectionOpen('role-'+role)}><summary>${esc(role)} (${people.length})</summary>${people.map(p=>`<div class="hint team-member"><span>${esc(p.name)}</span><button data-rm="${esc(p.id)}" class="danger" aria-label="Remove ${esc(p.name)}">×</button></div>`).join('')}</details>`).join('');
+  const member=p=>`<div class="hint team-member"><button class="team-name" data-edit="${esc(p.id)}" ${atLeast('manager')&&!readOnly?'':'disabled'} title="Edit ${esc(p.name)}">${esc(p.name)}</button><button data-rm="${esc(p.id)}" class="danger" aria-label="Remove ${esc(p.name)}">&times;</button></div>`;
+  const roles=(people,prefix='')=>teamGroups(people).map(([role,members])=>`<details class="role-group" data-section="role-${esc(prefix+role)}" ${sectionOpen('role-'+prefix+role)}><summary>${esc(role)} (${members.length})</summary>${members.map(member).join('')}</details>`).join('');
+  const categoryLabels={employees:'Employees',contractors:'Contractors',recruiting:'Recruiting'};
+  document.getElementById('team-filters').innerHTML=Object.entries(categoryLabels).map(([key,label])=>`<button type="button" data-team-filter="${key}" aria-pressed="${teamCategories.includes(key)}">${label}</button>`).join('');
+  const filteredPeople=state.people.filter(p=>teamCategories.includes(teamCategory(p)));
+  let teamHtml=roles(filteredPeople.filter(p=>!['inactive','archived'].includes(p.stage)));
+  for(const status of ['inactive','archived']){const people=filteredPeople.filter(p=>p.stage===status);teamHtml+=`<details class="lifecycle-section" data-section="team-${status}" ${sectionOpen('team-'+status)}><summary>${status==='inactive'?'Inactive Resources':'Archived Resources'} (${people.length})</summary>${roles(people,status+'-')||'<p class="hint">No resources</p>'}</details>`}
+  document.getElementById('ppl').innerHTML=(filteredPeople.length?'':'<p class="hint">No resources match the selected filters.</p>')+teamHtml;
 }
 function sectionOpen(key){return ls.get('section-'+key,true)?'open':''}
 document.addEventListener('toggle',e=>{if(e.target.matches?.('details[data-section]'))ls.set('section-'+e.target.dataset.section,e.target.open)},true);
