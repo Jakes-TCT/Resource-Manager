@@ -116,13 +116,15 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
 .rt thead th{position:sticky;top:0;background:var(--panel);z-index:1;font-size:11.5px;color:var(--mute)}.rt tfoot td{font-weight:700}.rt td.over{color:#c4303f;font-weight:600}
 .stk{display:flex;height:10px;width:150px;border-radius:5px;overflow:hidden;background:var(--line)}.stk i{display:block;height:100%}
 .lg{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin:8px 0}.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+.selr{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 18%,transparent);border:2px solid var(--accent);border-radius:6px;pointer-events:none;z-index:14}
+.selr span{position:absolute;top:4px;left:6px;font-size:11px;font-weight:600;color:var(--accent);white-space:nowrap}
 </style>
 </head>
 <body>
 <header>
   <h1>Capacity planner</h1>
   <button id="pane">Hide projects</button><button id="today">Today</button>
-  <span class="hint">Drag projects onto a row. Drag bars to move; pull the edges to resize. Click an empty slot to add a project.</span>
+  <span class="hint">Drag projects onto a row. Drag bars to move; pull the edges to resize. Click, or click and drag across empty slots, to add a project.</span>
   <span class="sp"></span>
   <button id="rep">Reports</button><select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><input id="flt" placeholder="Filter team by name, title or skill" aria-label="Filter team" style="width:250px"><button id="act" hidden>Activity</button><button id="lo" hidden onclick="doLogout()">Sign out</button><button id="usr" hidden>Users</button><span id="status" class="hint">Connecting…</span><span id="pres" class="pres"></span>
 </header>
@@ -571,18 +573,18 @@ function openNewProject(clientId,name){
       state.projects.push(pr);put('projects',pr);render();openDetails(pr.id);
     },null,null,o=>o.querySelector('#np-n').focus());
 }
-function openSlot(pid,idx,e){
+function openSlot(pid,idx,e,endIdx){
   closePop();
   const person=state.people.find(x=>x.id===pid);if(!person)return;
   const p=document.createElement('div');p.className='pop';p.style.width='290px';
-  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><div id="sl" class="sl"></div><p class="hint">Client projects keep one timeline for everyone, so a booking on an existing project appears on that project's dates.</p>`;
+  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><div id="sl" class="sl"></div><p class="hint">Client projects keep one timeline for everyone, so a booking on an existing project appears on that project's dates.</p>`;
   document.body.appendChild(p);
   p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-430))+'px';
   const draw=()=>{
     const q=p.querySelector('#sq').value.trim().toLowerCase();
     const match=pr=>!q||(labelOf(pr)+' '+(pr.code||'')).toLowerCase().includes(q);
     const item=pr=>{const linked=isLinked(pr),taken=linked&&state.allocs.some(a=>a.person===pid&&a.proj===pr.id);
-      const sub=taken?'Already on this project':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):'Starts here');
+      const sub=taken?'Already on this project':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):(endIdx!=null?'Uses your selected dates':'Starts here'));
       return `<div class="si${taken?' dis':''}" data-p="${pr.id}"><i style="background:${pr.leave?'#9aa1b5':colorOf(pr)}"></i><span>${esc(unav(pr,person)?'Unavailable':pr.name)}<br><span class="hint">${sub}</span></span></div>`};
     let html='';
     for(const c of state.clients){const ps=state.projects.filter(x=>x.clientId===c.id&&match(x));if(ps.length)html+=`<div class="sh">${esc(c.name)}</div>`+ps.map(item).join('')}
@@ -593,7 +595,7 @@ function openSlot(pid,idx,e){
   p.querySelector('#sl').onclick=ev=>{
     const d=ev.target.closest('.si');if(!d||d.classList.contains('dis'))return;
     const pr=proj(d.dataset.p);if(!pr)return;
-    const end=cols[addWork(idx,5)];
+    const end=cols[endIdx!=null?endIdx:addWork(idx,5)];
     if(isLinked(pr)){if(!pr.start){pr.start=cols[idx];pr.end=end;put('projects',pr)}addAssignment(pid,pr.id)}
     else{const n={id:uid(),person:pid,proj:pr.id,start:cols[idx],end,hrs:pr.leave?maxCap(person):4};state.allocs.push(n);put('allocs',n)}
     closePop();render();
@@ -606,6 +608,47 @@ document.addEventListener('click',e=>{
   const person=state.people.find(x=>x.id===tr.dataset.p);
   if(!person||idx<0||idx>=cols.length||!capOn(person,idx))return;
   openSlot(person.id,idx,e);
+});
+function workRange(person,a,b){
+  let lo=Math.min(a,b),hi=Math.max(a,b);
+  while(lo<=hi&&!capOn(person,lo))lo++;
+  while(hi>=lo&&!capOn(person,hi))hi--;
+  return lo<=hi?[lo,hi]:null;
+}
+let selState=null;
+const selIdx=(s,e)=>Math.max(0,Math.min(cols.length-1,Math.floor((e.clientX-s.tr.getBoundingClientRect().left)/DW)));
+document.addEventListener('pointerdown',e=>{
+  if(e.button>0||e.pointerType==='touch'||readOnly||!atLeast('manager')||!e.target.closest)return;
+  const tr=e.target.closest('.track');
+  if(!tr||e.target.closest('.al,.rh,button,input,select,textarea,.pop'))return;
+  const idx=Math.floor((e.clientX-tr.getBoundingClientRect().left)/DW);
+  const person=state.people.find(x=>x.id===tr.dataset.p);
+  if(!person||idx<0||idx>=cols.length||!capOn(person,idx))return;
+  selState={tr,person,a:idx,b:idx,x:e.clientX,moved:false,el:null};
+});
+document.addEventListener('pointermove',e=>{
+  const s=selState;if(!s)return;
+  if(!s.moved){
+    if(Math.abs(e.clientX-s.x)<6)return;
+    s.moved=true;document.body.style.userSelect='none';
+    s.el=document.createElement('div');s.el.className='selr';s.tr.appendChild(s.el);
+  }
+  const rr=sc.getBoundingClientRect();
+  if(e.clientX>rr.right-50)sc.scrollLeft+=14;else if(e.clientX<rr.left+250)sc.scrollLeft-=14;
+  s.b=selIdx(s,e);
+  const lo=Math.min(s.a,s.b),hi=Math.max(s.a,s.b);let n=0;
+  for(let i=lo;i<=hi;i++)if(capOn(s.person,i))n++;
+  s.el.style.left=lo*DW+'px';s.el.style.width=(hi-lo+1)*DW+'px';
+  s.el.innerHTML='<span>'+n+' working day'+(n===1?'':'s')+'</span>';
+});
+document.addEventListener('pointerup',e=>{
+  const s=selState;if(!s)return;selState=null;
+  document.body.style.userSelect='';if(s.el)s.el.remove();
+  if(!s.moved)return;
+  lastDragEnd=Date.now();
+  s.b=selIdx(s,e);
+  const r=workRange(s.person,s.a,s.b);if(!r)return;
+  openSlot(s.person.id,r[0],e,r[1]);
 });
 function reportRows(R){
   const days=[];for(let d=parse(R.from);fmt(d)<=R.to;d.setDate(d.getDate()+1))days.push(fmt(d));
