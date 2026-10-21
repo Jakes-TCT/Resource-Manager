@@ -281,6 +281,7 @@ const client=id=>state.clients.find(c=>c.id===id);
 const colorOf=p=>p.leave?'#9aa1b5':(client(p.clientId)?.color||p.color||'#5c6370');
 const labelOf=p=>{const c=client(p.clientId);return c?c.name+' / '+p.name:p.name};
 const isLinked=p=>!!p&&!p.leave&&!!client(p.clientId);
+function isCRMTeamSupport(p){if(!p||p.leave)return false;const name=labelOf(p).normalize('NFKC').toLowerCase().replace(/[^a-z0-9]+/g,' ');return /\b(?:the )?crm team\b/.test(name)&&/\bsupport\b/.test(name)}
 const eff=a=>{const pr=proj(a.proj);return isLinked(pr)&&pr.start&&pr.end&&!a.own?{...a,start:pr.start,end:pr.end}:a};
 const visAlloc=a=>{if(filterQ&&!personTextMatch(a.person)&&!projectSearchMatch(a.proj))return false;if(!pf)return true;const pr=proj(a.proj);if(!pr)return false;return pf[0]==='c'?pr.clientId===pf.slice(2):a.proj===pf.slice(2)};
 let offA=[],holMap={};
@@ -429,12 +430,13 @@ function openPop(id,e){
   const a=state.allocs.find(x=>x.id===id);if(!a)return;
   const p=document.createElement('div');p.className='pop';
   const tent=effectiveBookingStatus(a)==='tentative';const prj=proj(a.proj);const linked=isLinked(prj);
-  const team=linked?state.allocs.filter(b=>b.proj===a.proj):[];
+  const support=isCRMTeamSupport(prj);
+  const team=linked?state.allocs.filter(b=>b.proj===a.proj&&(!support||b.id===a.id)):[];
   const freeP=linked?state.people.filter(q=>!team.some(b=>b.person===q.id)):[];
   const hist=[...(a.hist||[]),...((prj&&prj.hist)||[])].sort((x,y)=>y.at-x.at);
   const histHtml=hist.length?`<div class="act"><span class="hint">\u26a1 Updated by <b>${esc(hist[0].by)}</b> ${ago(hist[0].at)}</span><a id="pvc" role="button" tabindex="0">View changes</a></div><div id="hl" hidden>${hist.slice(0,10).map(h=>`<div class="hr"><b>${esc(h.by)}</b> ${esc(h.text)}<br><span class="hint">${ago(h.at)}</span></div>`).join('')}</div>`:`<div class="act"><span class="hint">\u26a1 No changes recorded yet</span></div>`;
   const ownHtml=a.own?`<div class="act"><span class="hint">Own dates: ${fmtD(a.start)} \u2013 ${fmtD(a.end)}</span><a id="pfw" role="button" tabindex="0">Follow project dates</a></div>`:'';
-  const assignHtml=linked?`<label for="pa">Assigned to</label><div class="as" id="as">${team.filter((b,i)=>team.findIndex(c=>c.person===b.person)===i).map(b=>{const q=state.people.find(x=>x.id===b.person);return `<span class="ch2">${esc(q?q.name:'Unknown')}<b data-rm2="${b.id}" role="button" aria-label="Remove from project">\u00d7</b></span>`}).join('')}<input id="pa" placeholder="${team.length?'Add people':'Add people to this project'}" autocomplete="off"></div><div id="sg" class="sg" hidden></div>`:'';
+  const assignHtml=support?`<label>Assigned to</label><div class="as" id="as"><span class="ch2">${esc(state.people.find(q=>q.id===a.person)?.name||'Unknown')}</span></div>`:linked?`<label for="pa">Assigned to</label><div class="as" id="as">${team.filter((b,i)=>team.findIndex(c=>c.person===b.person)===i).map(b=>{const q=state.people.find(x=>x.id===b.person);return `<span class="ch2">${esc(q?q.name:'Unknown')}<b data-rm2="${b.id}" role="button" aria-label="Remove from project">\u00d7</b></span>`}).join('')}<input id="pa" placeholder="${team.length?'Add people':'Add people to this project'}" autocomplete="off"></div><div id="sg" class="sg" hidden></div>`:'';
   const opt=x=>`<option value="${x.id}" ${x.id===a.proj?'selected':''}>${esc(x.name)}</option>`;
   const optg=sortedClients().map(c=>`<optgroup label="${esc(c.name)}">${state.projects.filter(x=>x.clientId===c.id).map(opt).join('')}</optgroup>`).join('')+state.projects.filter(x=>!client(x.clientId)).map(opt).join('');
   p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><div class="two"><div><label for="booking-start">Start date</label><input type="date" id="booking-start" value="${eff(a).start||''}"></div><div><label for="booking-end">End date</label><input type="date" id="booking-end" value="${eff(a).end||''}"></div></div><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${ownHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
