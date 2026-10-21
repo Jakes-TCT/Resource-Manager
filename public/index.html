@@ -402,7 +402,7 @@ document.addEventListener('pointermove',e=>{
   if(ghost){ghost.remove();ghost=null}
   drag.a=null;const t=target(e);if(!t||!t.track)return;
   let a,b;
-  if(drag.type==='new'){const pr=proj(drag.proj),ps=pr&&isLinked(pr)&&pr.start?span(pr):null;if(ps){a=ps[0];b=ps[1]}else{a=nextWork(t.col,1);b=a<0?-1:addWork(a,drag.len)}}
+  if(drag.type==='new'){a=nextWork(Math.max(0,t.col),1);b=a<0?-1:addWork(a,drag.len)}
   else if(drag.type==='move'){a=nextWork(Math.max(0,t.col-drag.off),1);b=a<0?-1:addWork(a,drag.n)}
   else{a=drag.s[0];const c=nextWork(t.col,-1);b=Math.max(a,c);t.track=drag.bar.closest('.track')}
   if(a<0||b<a)return;b=Math.min(b,cols.length-1);
@@ -417,7 +417,7 @@ document.addEventListener('pointerup',e=>{
   if(d.type==='hrs'){if(d.moved&&d.hrs!=null){const al=state.allocs.find(x=>x.id===d.id);if(al&&al.hrs!==d.hrs){al.hrs=d.hrs;put('allocs',al)}}render();return}
   if(!d.moved){if(d.bar)openPop(d.id,e);else if(d.proj)openDetails(d.proj);return}
   if(d.a==null||!d.track)return;
-  if(d.type==='new'){const pr=proj(d.proj),pid=d.track.dataset.p;if(isLinked(pr)){if(!pr.start){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr)}addAssignment(pid,d.proj)}else{const n={id:uid(),person:pid,proj:d.proj,start:cols[d.a],end:cols[d.b],hrs:pr&&pr.leave?8:4};state.allocs.push(n);put('allocs',n)}}
+  if(d.type==='new'){const pr=proj(d.proj),pid=d.track.dataset.p;if(!pr)return;if(isLinked(pr)&&!pr.start){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr)}addAssignment(pid,d.proj,{start:cols[d.a],end:cols[d.b]})}
   else{const al=state.allocs.find(x=>x.id===d.id);if(!al)return;const pr=proj(al.proj),pid=d.track.dataset.p;if(isLinked(pr)&&!al.own){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr);if(d.type==='move'&&pid!==al.person&&!state.allocs.some(b=>b.person===pid&&b.proj===al.proj)){al.person=pid;put('allocs',al)}}else{al.start=cols[d.a];al.end=cols[d.b];if(d.type==='move'&&(!isLinked(pr)||!state.allocs.some(b=>b!==al&&b.person===pid&&b.proj===al.proj)))al.person=pid;put('allocs',al)}}
   render();
 });
@@ -712,14 +712,14 @@ function openSlot(pid,idx,e,endIdx){
   closePop();
   const person=state.people.find(x=>x.id===pid);if(!person)return;
   const p=document.createElement('div');p.className='pop';p.style.width='290px';
-  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><button id="slot-new-project" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>+ New project</button><button id="slot-leave" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>${person.emp==='contractor'?'Unavailable':'Leave'}</button><div id="sl" class="sl"></div><p class="hint">${endIdx!=null?'The booking uses your selected dates. If the project already has dates, only this person gets the selected dates and everyone else keeps the project timeline.':'Client projects keep one timeline for everyone, so a booking on an existing project appears on that project\'s dates.'}</p>`;
+  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><button id="slot-new-project" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>+ New project</button><button id="slot-leave" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>${person.emp==='contractor'?'Unavailable':'Leave'}</button><div id="sl" class="sl"></div><p class="hint">${endIdx!=null?'The booking uses your selected dates. If the project already has dates, only this person gets the selected dates and everyone else keeps the project timeline.':'The booking starts on the selected date. Existing bookings keep their dates.'}</p>`;
   document.body.appendChild(p);
   p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-430))+'px';
   const draw=()=>{
     const q=p.querySelector('#sq').value.trim().toLowerCase();
     const match=pr=>!q||(labelOf(pr)+' '+(pr.code||'')).toLowerCase().includes(q);
-    const item=pr=>{const linked=isLinked(pr),taken=linked&&state.allocs.some(a=>a.person===pid&&a.proj===pr.id);
-      const sub=taken?'Already on this project':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):(endIdx!=null?(linked&&pr.start?'Your dates, for this person only':'Uses your selected dates'):'Starts here'));
+    const item=pr=>{const linked=isLinked(pr),taken=state.allocs.some(a=>a.person===pid&&a.proj===pr.id&&eff(a).start===cols[idx]&&eff(a).end===cols[endIdx!=null?endIdx:addWork(idx,5)]);
+      const sub=taken?'Already booked for these dates':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):(endIdx!=null?(linked&&pr.start?'Your dates, for this person only':'Uses your selected dates'):'Starts here'));
       return `<div class="si${taken?' dis':''}" data-p="${pr.id}"><i style="background:${pr.leave?'#9aa1b5':colorOf(pr)}"></i><span>${esc(unav(pr,person)?'Unavailable':pr.name)}<br><span class="hint">${sub}</span></span></div>`};
     let html='';
     for(const c of state.clients){const ps=state.projects.filter(x=>x.clientId===c.id&&match(x));if(ps.length)html+=`<div class="sh">${esc(c.name)}</div>`+ps.map(item).join('')}
@@ -733,12 +733,8 @@ function openSlot(pid,idx,e,endIdx){
     const d=ev.target.closest('.si');if(!d||d.classList.contains('dis'))return;
     const pr=proj(d.dataset.p);if(!pr)return;
     const end=cols[endIdx!=null?endIdx:addWork(idx,5)];
-    if(isLinked(pr)){
-      if(!pr.start){pr.start=cols[idx];pr.end=end;put('projects',pr);addAssignment(pid,pr.id)}
-      else if(pr.start!==cols[idx]||pr.end!==end){const n={id:uid(),person:pid,proj:pr.id,hrs:4,own:true,start:cols[idx],end};state.allocs.push(n);put('allocs',n)}
-      else addAssignment(pid,pr.id,{start:cols[idx],end});
-    }
-    else{const n={id:uid(),person:pid,proj:pr.id,start:cols[idx],end,hrs:pr.leave?maxCap(person):4};state.allocs.push(n);put('allocs',n)}
+    if(isLinked(pr)&&!pr.start){pr.start=cols[idx];pr.end=end;put('projects',pr)}
+    addAssignment(pid,pr.id,{start:cols[idx],end});
     closePop();render();
   };
 }
@@ -1020,9 +1016,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-trp]');if(
 /* ---------- project details pane, assignments, board filter ---------- */
 function addAssignment(pid,projId,dates){
   if(dates===null)return;
-  const pr=proj(projId);if(!pr||state.allocs.some(a=>a.person===pid&&a.proj===projId))return;
+  const pr=proj(projId);if(!pr)return;const selected=dates||(pr.start&&pr.end?{start:pr.start,end:pr.end}:null);if(state.allocs.some(a=>a.person===pid&&a.proj===projId&&(!selected||(eff(a).start===selected.start&&eff(a).end===selected.end))))return;
   if(isLinked(pr)&&!pr.start){const s=nextWork(lowerBound(todayISO),1);if(s>=0){pr.start=cols[s];pr.end=cols[addWork(s,5)];put('projects',pr)}}
-  const n={id:uid(),person:pid,proj:projId,hrs:4,...(dates?{start:dates.start,end:dates.end,own:true}: {})};state.allocs.push(n);put('allocs',n);
+  const n={id:uid(),person:pid,proj:projId,hrs:pr.leave?maxCap(state.people.find(p=>p.id===pid)||{cap:8}):4,...(dates?{start:dates.start,end:dates.end,own:true}: {})};state.allocs.push(n);put('allocs',n);
 }
 function fillPf(){
   const s=document.getElementById('pf');if(!s)return;
