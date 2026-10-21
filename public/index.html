@@ -166,6 +166,8 @@ body.zoomed-out .al{font-size:14px}body.zoomed-out .al small{font-size:12px}body
 .team-filters button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .work-days{margin-top:12px;border:1px solid var(--line2);border-radius:6px;padding:8px}.work-days summary{cursor:pointer;color:var(--mute);font-size:12px}
 
+.track .al{margin:0;box-sizing:border-box}
+body[data-role=contributor] .client-name[data-eclient]{display:block!important;cursor:default}
 .al{background:var(--bar-bg,var(--c));color:var(--bar-ink,#fff)}
 .al.tent{background:var(--bar-bg);color:var(--bar-ink)}
 aside .team-heading{border-top:2px solid var(--line2);padding-top:16px;margin-top:20px;font-size:16px;font-weight:700;color:var(--ink)}
@@ -180,7 +182,7 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
 <header>
   <details id="settings"><summary>Settings</summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button></nav></details>
   <h1>Capacity planner</h1>
-  <button id="pane">Hide projects</button><button id="today">Today</button><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label" class="hint">100%</span><button id="zoom-in" aria-label="Zoom in">+</button>
+  <button id="pane">Hide projects</button><button id="today">Today</button><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label" class="hint">100%</span><button id="zoom-in" aria-label="Zoom in">+</button><button id="undo" disabled title="Undo last change" aria-label="Undo">&#8630;</button><button id="redo" disabled title="Redo last change" aria-label="Redo">&#8631;</button>
   <span class="sp"></span>
   <select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><input id="flt" placeholder="Search team, skills, clients or projects" aria-label="Search team, skills, clients or projects" style="width:250px"><button id="act" hidden>Activity</button><span id="status" class="hint">Connecting…</span><span id="pres" class="pres"></span>
 <button id="theme-toggle" class="icon-button" aria-label="Switch colour mode" title="Switch colour mode"></button>
@@ -251,8 +253,8 @@ function loadLocal(){try{const s=localStorage.getItem(KEY);return s?JSON.parse(s
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
 function setStatus(t){const s=document.getElementById('status');if(s)s.textContent=t}
 function fail(e){setStatus('Save failed: '+((e&&(e.message||e.code))||'unknown error'))}
-function put(kind,obj){recordOwnership(kind,obj);if(!db){saveLocal();return}const r={...obj};delete r.id;db.collection(kind).doc(obj.id).set(r).catch(fail);logChange(kind,obj.id,r)}
-function del(kind,id){if(!db){saveLocal();return}db.collection(kind).doc(id).delete().catch(fail);logChange(kind,id,null)}
+function put(kind,obj){recordOwnership(kind,obj);captureEdit(kind,obj.id,obj);if(!db){shadow[kind+'/'+obj.id]=JSON.stringify(historyValue(obj));saveLocal();return}const r={...obj};delete r.id;db.collection(kind).doc(obj.id).set(r).catch(fail);logChange(kind,obj.id,r)}
+function del(kind,id){captureEdit(kind,id,null);if(!db){delete shadow[kind+'/'+id];saveLocal();return}db.collection(kind).doc(id).delete().catch(fail);logChange(kind,id,null)}
 function sortAll(){state.clients.sort((a,b)=>(a.n||0)-(b.n||0));state.projects.sort((a,b)=>(a.leave?1:0)-(b.leave?1:0)||(a.n||0)-(b.n||0));state.people.sort((a,b)=>(a.n||0)-(b.n||0)||a.name.localeCompare(b.name))}
 function refresh(){if(drag){dirty=true;return}render()}
 async function connect(){
@@ -340,8 +342,16 @@ function render(){
     mine.forEach(x=>{let y=0;for(let i=x.s[0];i<=x.s[1];i++)y=Math.max(y,stk[i]);x.y=y;for(let i=x.s[0];i<=x.s[1];i++){stk[i]=y+x.a.hrs;if(!offP[i]){dayAll[i]=(dayAll[i]||0)+x.a.hrs;if(!proj(x.a.proj)?.leave)day[i]=(day[i]||0)+x.a.hrs}}
       });
     const peak=Math.max(maxCap(p),...stk),PPH=22;
-    const collapsed=!!collapsedResources[p.id];const h=collapsed?44:(rowH[p.id]?Math.max(44,rowH[p.id]):PAD*2+peak*PPH);
-    const pph=(h-PAD*2)/peak;
+    const collapsed=!!collapsedResources[p.id];let h=collapsed?44:(rowH[p.id]?Math.max(44,rowH[p.id]):PAD*2+peak*PPH);
+    const pph=Math.max(.01,(h-PAD*2)/Math.max(1,peak));
+    // Pack actual rendered pixels per working day, including the minimum bar height.
+    const pixelStack=new Array(cols.length).fill(PAD);
+    mine.forEach(x=>{x.height=Math.max(24,Number(x.a.hrs)*pph);x.parts=[];
+      for(let i=x.s[0];i<=x.s[1];i++){if(offP[i])continue;const y=pixelStack[i];pixelStack[i]+=x.height;
+        const last=x.parts[x.parts.length-1];if(last&&last[1]===i-1&&Math.abs(last[2]-y)<.001)last[1]=i;else x.parts.push([i,i,y]);
+      }
+    });
+    if(!collapsed)h=Math.max(h,...pixelStack.map(y=>y+PAD));
     let util=0;thisWk.forEach(i=>util+=day[i]||0);let capw=0;thisWk.forEach(i=>capw+=capOn(p,i));const pct=Math.round(util/Math.max(1,capw)*100);const flag=weeklyFlag(p,weekStart);
     let tr='';
     if(tIdx>=0)tr+=`<div class="col-td" style="left:${tIdx*DW}px;width:${DW}px"></div>`;
@@ -349,8 +359,8 @@ function render(){
     for(let w=0;w<range.weeks;w++)tr+=`<div class="wkl" style="left:${w*7*DW}px"></div>`;
     cols.forEach((c,i)=>{if(offP[i])tr+=`<div class="off${offA[i]===2?' hol':''}" style="left:${i*DW}px;width:${DW}px"></div>`});
     cols.forEach((date,i)=>{const leave=state.allocs.filter(a=>a.person===p.id&&proj(a.proj)?.leave&&eff(a).start<=date&&eff(a).end>=date).reduce((n,a)=>n+Number(a.hrs||0),0);if(leave>=8)tr+=`<div class="leave-day" style="left:${i*DW}px;width:${DW}px" title="Full day unavailable"></div>`});
-    if(!collapsed)mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};segs(x.s[0],x.s[1],offP).forEach(([si,sj],k,arr)=>{
-      tr+=`<div class="al ${pr.leave?'leave':(effectiveBookingStatus(x.a)==='tentative'?'tent':'')}${x.a.hrs*pph<36?' sh':''}" data-id="${x.a.id}" title="${esc(barName(pr,p)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${si*DW+1}px;width:${(sj-si+1)*DW-2}px;top:${PAD+x.y*pph}px;height:${Math.max(12,x.a.hrs*pph-2)}px;--c:${colorOf(pr)};${barAppearance(pr,x.a)}"><span class="nm"${x.a.hrs*pph>=52?' style="white-space:normal"':''}>${x.a.hrs*pph>=52?barTall(pr,p):esc(barName(pr,p))}</span><small>${x.a.hrs}h/day${!pr.leave&&effectiveBookingStatus(x.a)==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
+    if(!collapsed)mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};x.parts.forEach(([si,sj,top],k,arr)=>{
+      tr+=`<div class="al ${pr.leave?'leave':(effectiveBookingStatus(x.a)==='tentative'?'tent':'')}${x.height<36?' sh':''}" data-id="${x.a.id}" title="${esc(barName(pr,p)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${si*DW+1}px;width:${(sj-si+1)*DW-2}px;top:${top}px;height:${x.height}px;--c:${colorOf(pr)};${barAppearance(pr,x.a)}"><span class="nm"${x.height>=52?' style="white-space:normal"':''}>${x.height>=52?barTall(pr,p):esc(barName(pr,p))}</span><small>${x.a.hrs}h/day${!pr.leave&&effectiveBookingStatus(x.a)==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
     html+=`<div class="row${collapsed?' resource-collapsed':''}" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><div class="resource-heading"><button type="button" class="resource-toggle" data-collapse-resource="${esc(p.id)}" aria-expanded="${!collapsed}" aria-label="${collapsed?'Expand':'Collapse'} row for ${esc(p.name)}" title="${collapsed?'Expand':'Collapse'} resource row">${collapsed?'&#9656;':'&#9662;'}</button><b>${esc(p.name)}</b></div>${flag}<span>${esc(p.role||'')} · ${pct}% selected week</span><div class="tags">${dayLabel(p)?'<em>'+esc(dayLabel(p))+'</em>':''}${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
   });
   if(!state.people.length)html+='<div class="empty">'+(db&&!synced?'Loading the shared plan…':'Add a team member in the sidebar to start planning.')+'</div>';
@@ -584,6 +594,20 @@ function openSkills(btn){
 document.getElementById('skb').onclick=e=>openSkills(e.currentTarget);
 /* ---------- activity log: who changed what ---------- */
 const shadow={};
+const undoStack=[],redoStack=[];let pendingEdit=null,replaying=false;
+const historyKinds=new Set(['clients','projects','people','allocs','holidays']);
+const copyEdit=x=>x==null?null:JSON.parse(JSON.stringify(x));
+const historyValue=x=>{if(!x)return null;const r=copyEdit(x);delete r.id;return r};
+function historyButtons(){document.getElementById('undo').disabled=replaying||!undoStack.length||!atLeast('manager');document.getElementById('redo').disabled=replaying||!redoStack.length||!atLeast('manager')}
+function finishEdit(){if(!pendingEdit)return;const changes=[...pendingEdit.values()].filter(c=>JSON.stringify(c.before)!==JSON.stringify(c.after));pendingEdit=null;if(changes.length){undoStack.push(changes);if(undoStack.length>100)undoStack.shift();redoStack.length=0}historyButtons()}
+function captureEdit(kind,id,obj){if(replaying||!historyKinds.has(kind))return;const key=kind+'/'+id;if(!pendingEdit){pendingEdit=new Map();queueMicrotask(finishEdit)}const before=shadow[key]?JSON.parse(shadow[key]):null;const change=pendingEdit.get(key)||{kind,id,before:copyEdit(before)};change.after=historyValue(obj);pendingEdit.set(key,change)}
+async function replayEdit(redo=false){finishEdit();if(replaying||!atLeast('manager'))return;const source=redo?redoStack:undoStack,target=redo?undoStack:redoStack,entry=source[source.length-1];if(!entry)return;
+  for(const c of entry){const current=historyValue(state[c.kind].find(x=>x.id===c.id));if(JSON.stringify(current)!==JSON.stringify(redo?c.before:c.after)){setStatus('Cannot '+(redo?'redo':'undo')+': this record has changed since your edit.');return}}
+  replaying=true;historyButtons();closeModal();closePop();
+  try{for(const c of (redo?entry:[...entry].reverse())){const value=copyEdit(redo?c.after:c.before);state[c.kind]=state[c.kind].filter(x=>x.id!==c.id);if(value)state[c.kind].push({id:c.id,...value});if(db){if(value)await db.collection(c.kind).doc(c.id).set(value);else await db.collection(c.kind).doc(c.id).delete();logChange(c.kind,c.id,value)}else{if(value)shadow[c.kind+'/'+c.id]=JSON.stringify(value);else delete shadow[c.kind+'/'+c.id];saveLocal()}}source.pop();target.push(entry);sortAll();render()}catch(e){fail(e);undoStack.length=0;redoStack.length=0}finally{replaying=false;historyButtons()}
+}
+document.getElementById('undo').onclick=()=>replayEdit(false);document.getElementById('redo').onclick=()=>replayEdit(true);
+
 function describe(kind,id,obj,old){
   const cur=obj||old||{},out=[];
   const pn=i=>{const x=state.people.find(y=>y.id===i);return x?x.name:'someone'};
@@ -688,7 +712,7 @@ function openSlot(pid,idx,e,endIdx){
   closePop();
   const person=state.people.find(x=>x.id===pid);if(!person)return;
   const p=document.createElement('div');p.className='pop';p.style.width='290px';
-  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><button id="slot-new-project" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>+ New project</button><div id="sl" class="sl"></div><p class="hint">${endIdx!=null?'The booking uses your selected dates. If the project already has dates, only this person gets the selected dates and everyone else keeps the project timeline.':'Client projects keep one timeline for everyone, so a booking on an existing project appears on that project\'s dates.'}</p>`;
+  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><button id="slot-new-project" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>+ New project</button><button id="slot-leave" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>${person.emp==='contractor'?'Unavailable':'Leave'}</button><div id="sl" class="sl"></div><p class="hint">${endIdx!=null?'The booking uses your selected dates. If the project already has dates, only this person gets the selected dates and everyone else keeps the project timeline.':'Client projects keep one timeline for everyone, so a booking on an existing project appears on that project\'s dates.'}</p>`;
   document.body.appendChild(p);
   p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-430))+'px';
   const draw=()=>{
@@ -703,6 +727,7 @@ function openSlot(pid,idx,e,endIdx){
     p.querySelector('#sl').innerHTML=html||'<p class="hint">No projects match.</p>';
   };
   p.querySelector('#slot-new-project').onclick=()=>newSlotProject(pid,cols[idx],cols[endIdx!=null?endIdx:addWork(idx,5)],p.querySelector('#sq').value);
+  p.querySelector('#slot-leave').onclick=()=>{let pr=state.projects.find(x=>x.leave);if(!pr){pr={id:uid(),name:'Leave',leave:true,color:'#9aa1b5',n:Date.now()};state.projects.push(pr);put('projects',pr)}const a={id:uid(),person:pid,proj:pr.id,start:cols[idx],end:cols[endIdx!=null?endIdx:idx],hrs:maxCap(person)};state.allocs.push(a);put('allocs',a);closePop();render()};
   draw();const sq=p.querySelector('#sq');sq.oninput=draw;sq.focus();
   p.querySelector('#sl').onclick=ev=>{
     const d=ev.target.closest('.si');if(!d||d.classList.contains('dis'))return;
@@ -820,7 +845,7 @@ function openReport(){
     const T={avail:0,cb:0,tb:0,cn:0,tn:0,lv:0,un:0,free:0};rows.forEach(r=>{for(const k in T)T[k]+=r[k]});
     const booked=T.cb+T.tb+T.cn+T.tn,bill=T.cb+T.tb,non=T.cn+T.tn,conf=T.cb+T.cn,ten=T.tb+T.tn;
     const card=(l,v,sub)=>`<div class="card"><span class="hint">${l}</span><b>${v}</b><span class="hint">${sub||'&nbsp;'}</span></div>`;
-    q('#rc').innerHTML=card('Available',f(T.avail)+'h',rows.length+' people')+card('Booked',f(booked)+'h',T.avail?Math.round(booked/T.avail*100)+'% of available':'')+card('Billable',f(bill)+'h',f(non)+'h non-billable')+card('Confirmed',f(conf)+'h',f(ten)+'h tentative')+card('Leave',f(T.lv)+'h','permanent staff')+card('Unavailable',f(T.un)+'h','contractors')+card('Free',f(T.free)+'h','');
+    q('#rc').innerHTML=card('Available',f(T.avail)+'h',rows.length+' people')+card('Booked',f(booked)+'h',T.avail?Math.round(booked/T.avail*100)+'% of available':'')+card('Billable',f(bill)+'h',f(non)+'h non-billable')+card('Confirmed',f(conf)+'h',f(ten)+'h tentative')+card('Leave',f(T.lv)+'h','permanent staff')+card('Unavailable',f(T.un)+'h','contractors')+card('Free',f(T.free)+'h','Permanent employees: '+f(rows.filter(r=>!r.con).reduce((n,r)=>n+r.free,0))+'h<br>Contractors: '+f(rows.filter(r=>r.con).reduce((n,r)=>n+r.free,0))+'h');
     const seg=(h,tot,bg)=>`<i style="width:${(h/tot*100).toFixed(1)}%;background:${bg}"></i>`;
     q('#rtab').innerHTML=`<table class="rt"><thead><tr><th>Name</th><th>Job title</th><th>Type</th><th>Available</th><th>Billable confirmed</th><th>Billable tentative</th><th>Non-billable confirmed</th><th>Non-billable tentative</th><th>Leave</th><th>Unavailable</th><th>Free</th><th>Booked %</th><th></th></tr></thead><tbody>${rows.map(r=>{
       const tot=Math.max(r.avail,r.booked+r.lv+r.un)||1;
@@ -1213,7 +1238,7 @@ function ownershipHistory(item){const entries=item.ownershipHistory||[];return '
 function recordOwnership(kind,obj){if(kind!=='clients'&&kind!=='projects')return;let prev={};try{prev=JSON.parse(shadow[kind+'/'+obj.id]||'{}')}catch(e){}const fields=kind==='clients'?[['clientOwnerId','Client Owner'],['salesOwnerId','Sales Owner']]:[['ownerId','Project Owner']];const changes=fields.filter(([f])=>(prev[f]||'')!==(obj[f]||''));if(changes.length){obj.ownershipHistory=[...(prev.ownershipHistory||obj.ownershipHistory||[]),...changes.map(([field,label])=>({field,label,from:prev[field]||'',to:obj[field]||'',fromName:ownerName(prev[field]),toName:ownerName(obj[field]),at:Date.now(),by:me?.name||'Unknown'}))];}}
 function renderSidebar(){
   const chip=p=>`<div class="chip ${p.leave?'leave':''} ${['inactive','archived'].includes(p.status)?'inactive':''}" data-proj="${esc(p.id)}" title="${esc(p.status||'active')}"><i style="background:${p.leave?'':colorOf(p)}"></i><span class="cn">${esc(p.name)}</span><button class="ed" data-eproj="${esc(p.id)}" aria-label="Edit ${esc(p.name)}">✎</button></div>`;
-  const clientBlock=(c,projects,alias=false,section='')=>`<div class="cg ${['inactive','archived'].includes(c.status)?'inactive':''}" id="${alias?'linked-'+section+'-':'client-'}${esc(c.id)}"><div class="ch"><button class="tg" data-tg="${esc(c.id)}" aria-expanded="${!collapsed[c.id]}" aria-label="Toggle ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><b>${esc(c.name)}</b><button data-eclient="${esc(c.id)}">Edit</button></div>${alias&&(c.status||'active')==='active'?`<button class="ed client-link" data-client-link="${esc(c.id)}">View active client ↗</button>`:''}${collapsed[c.id]?'':projects.map(chip).join('')}${!alias&&!collapsed[c.id]?`<div class="add"><input data-np="${esc(c.id)}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${esc(c.id)}">Add</button></div>`:''}</div>`;
+  const clientBlock=(c,projects,alias=false,section='')=>`<div class="cg ${['inactive','archived'].includes(c.status)?'inactive':''}" id="${alias?'linked-'+section+'-':'client-'}${esc(c.id)}"><div class="ch"><button class="tg" data-tg="${esc(c.id)}" aria-expanded="${!collapsed[c.id]}" aria-label="Toggle ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><button class="client-name" data-eclient="${esc(c.id)}" style="flex:1;text-align:left;font-weight:600;border:0;background:none;padding:0">${esc(c.name)}</button><button data-eclient="${esc(c.id)}">Edit</button></div>${alias&&(c.status||'active')==='active'?`<button class="ed client-link" data-client-link="${esc(c.id)}">View active client ↗</button>`:''}${collapsed[c.id]?'':projects.map(chip).join('')}${!alias&&!collapsed[c.id]?`<div class="add"><input data-np="${esc(c.id)}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${esc(c.id)}">Add</button></div>`:''}</div>`;
   const active=sortedClients().filter(c=>!['inactive','archived'].includes(c.status));
   const owners=new Map();active.forEach(c=>{const id=c.clientOwnerId||'';if(!owners.has(id))owners.set(id,[]);owners.get(id).push(c)});
   let html=[...owners].sort((a,b)=>!a[0]?1:!b[0]?-1:ownerName(a[0]).localeCompare(ownerName(b[0]))).map(([id,clients])=>`<details class="owner-group" data-section="owner-${esc(id)}" ${sectionOpen('owner-'+id)}><summary>${esc(id?ownerName(id):'Unassigned clients')}</summary>${clients.map(c=>clientBlock(c,state.projects.filter(p=>p.clientId===c.id))).join('')}</details>`).join('');
