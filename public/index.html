@@ -282,6 +282,7 @@ const proj=id=>state.projects.find(p=>p.id===id);
 const client=id=>state.clients.find(c=>c.id===id);
 const colorOf=p=>p.leave?'#9aa1b5':(client(p.clientId)?.color||p.color||'#5c6370');
 const labelOf=p=>{const c=client(p.clientId);return c?c.name+' / '+p.name:p.name};
+const isEnvisioning=p=>!!p&&/\benvisionings?\b/i.test(p.name||'');
 const isLinked=p=>!!p&&!p.leave&&!!client(p.clientId);
 function isCRMTeamSupport(p){if(!p||p.leave)return false;const name=labelOf(p).normalize('NFKC').toLowerCase().replace(/[^a-z0-9]+/g,' ');return /\b(?:the )?crm team\b/.test(name)&&/\bsupport\b/.test(name)}
 const eff=a=>{const pr=proj(a.proj);return isLinked(pr)&&pr.start&&pr.end&&!a.own?{...a,start:pr.start,end:pr.end}:a};
@@ -738,7 +739,7 @@ function openSlot(pid,idx,e,endIdx){
   const draw=()=>{
     const q=p.querySelector('#sq').value.trim().toLowerCase();
     const match=pr=>!q||(labelOf(pr)+' '+(pr.code||'')).toLowerCase().includes(q);
-    const item=pr=>{const linked=isLinked(pr),taken=state.allocs.some(a=>a.person===pid&&a.proj===pr.id&&eff(a).start===cols[idx]&&eff(a).end===cols[endIdx!=null?endIdx:addWork(idx,5)]);
+    const item=pr=>{const linked=isLinked(pr),taken=!isEnvisioning(pr)&&state.allocs.some(a=>a.person===pid&&a.proj===pr.id&&eff(a).start===cols[idx]&&eff(a).end===cols[endIdx!=null?endIdx:addWork(idx,5)]);
       const sub=taken?'Already booked for these dates':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):(endIdx!=null?(linked&&pr.start?'Your dates, for this person only':'Uses your selected dates'):'Starts here'));
       return `<div class="si${taken?' dis':''}" data-p="${pr.id}"><i style="background:${pr.leave?'#9aa1b5':colorOf(pr)}"></i><span>${esc(unav(pr,person)?'Unavailable':pr.name)}<br><span class="hint">${sub}</span></span></div>`};
     let html='';
@@ -950,10 +951,9 @@ function buildFloatOps(P,o){
   const ops=[],set=(coll,id,data)=>ops.push({op:'set',coll,id,data}),del2=(coll,id)=>ops.push({op:'delete',coll,id});
   const slug=t=>String(t).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,34);
   const h36=t=>{let h=2166136261;for(const ch of String(t)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(36)};
-  const st={newPeople:0,newClients:0,newProjects:0,bookings:0,leave:0,holidays:0,removed:0};
+  const st={newPeople:0,newClients:0,newProjects:0,bookings:0,leave:0,holidays:0,removed:0,skipped:0};
   let n=Date.now();
-  if(o.all){state.allocs.forEach(a=>{del2('allocs',a.id);st.removed++})}
-  else if(o.replace){state.allocs.filter(a=>String(a.id).startsWith('fa_')).forEach(a=>{del2('allocs',a.id);st.removed++})}
+
   const pid=new Map(state.people.map(p=>[p.name.trim().toLowerCase(),p.id]));
   for(const p of P.people){const k=p.name.toLowerCase();if(pid.has(k))continue;
     const id='fp_'+slug(p.name)+'_'+h36(p.name);
@@ -969,24 +969,33 @@ function buildFloatOps(P,o){
     const cI=client?clientId(client):'';
     const ex=state.projects.find(p=>(p.clientId||'')===cI&&p.name.trim().toLowerCase()===name.toLowerCase()&&!p.leave);
     let id;
-    if(ex){id=ex.id;if(!ex.start){const {id:_,hist:__,...rest}=ex;set('projects',id,{...rest,start:span.get(k).s,end:span.get(k).e})}}
+    if(ex){id=ex.id}
     else{id='fj_'+slug(client+' '+name)+'_'+h36(k);
       const d={name,clientId:cI,stage:'Active',billable:!!client&&client!==P.account,n:n++};
       if(cI){d.start=span.get(k).s;d.end=span.get(k).e}else d.color=PALETTE[(state.projects.length*7)%PALETTE.length];
       set('projects',id,d);st.newProjects++}
     prj.set(k,id);return id};
+  const normalize=t=>String(t||'').trim().replace(/\s+/g,' ').toLowerCase();
+  const identity=d=>JSON.stringify([d.person,d.proj,Number(d.hrs),normalize(d.comment)]);
+  const coverage=new Map();
+  for(const a of state.allocs){const d=eff(a);if(!d.start||!d.end)continue;const key=identity(d);if(!coverage.has(key))coverage.set(key,[]);coverage.get(key).push([d.start,d.end])}
+  const mergeBooking=d=>{const key=identity(d),covered=coverage.get(key)||[];let remaining=[[d.start,d.end]];
+    for(const [start,end]of covered){remaining=remaining.flatMap(([a,b])=>end<a||start>b?[[a,b]]:[...(a<start?[[a,addDays(start,-1)]]:[]),...(b>end?[[addDays(end,1),b]]:[])])}
+    if(!remaining.length){st.skipped++;return 0}let added=0;
+    for(const [start,end]of remaining){const data={...d,start,end};const token=key+'|'+start+'|'+end;set('allocs','fa_'+h36(token)+'_'+h36([...token].reverse().join('')),data);covered.push([start,end]);added++}coverage.set(key,covered);return added;
+  };
   for(const b of P.bookings){
     const pI=projectId(b.client,b.project),perId=pid.get(b.person.toLowerCase());
     const d={person:perId,proj:pI,hrs:b.hrs,start:b.start,end:b.end};
     if(b.client)d.own=true;
     if(b.comment)d.comment=b.comment;
-    set('allocs','fa_'+uid(),d);st.bookings++}
+    st.bookings+=mergeBooking(d)}
   if(o.leave&&P.leave.length){
     let lv=state.projects.find(p=>p.leave);
     if(!lv){lv={id:'lv'};set('projects','lv',{name:'Leave',leave:true,color:'#9aa1b5',n:n++})}
     for(const l of P.leave){
       const d={person:pid.get(l.person.toLowerCase()),proj:lv.id,hrs:l.hrs,start:l.start,end:l.end,comment:l.type+(l.comment?' - '+l.comment:'')};
-      set('allocs','fa_'+uid(),d);st.leave++}}
+      st.leave+=mergeBooking(d)}}
   if(o.hol){const have=new Set(state.holidays.map(h=>h.id));
     for(const h of P.holidays){if(!(h.sa||o.non)||have.has(h.iso))continue;have.add(h.iso);set('holidays',h.iso,{name:h.name});st.holidays++}}
   return{ops,st};
@@ -996,7 +1005,7 @@ function openImport(){
   closeModal();closePop();
   const o=document.createElement('div');o.className='ov-modal';document.body.appendChild(o);
   const ck=(id,on,txt)=>`<label class="ck" style="margin:6px 0"><input type="checkbox" id="${id}" ${on?'checked':''}> ${txt}</label>`;
-  o.innerHTML=`<div class="dlg" style="width:540px"><h3>Import from Float</h3><p class="hint">Choose the CSV you exported from Float. Nothing is saved until you click Import.</p><input type="file" id="ifile" accept=".csv,text/csv"><div id="isum" style="margin-top:12px;font-size:13px"></div><div id="iopt" hidden style="margin-top:8px">${ck('o-lv',1,'Import time off as Leave bookings')}${ck('o-hol',1,'Import South African public holidays')}${ck('o-non',0,'Also import non-South-African holidays')}${ck('o-rep',1,'Replace bookings from an earlier Float import')}${ck('o-all',0,'Delete ALL existing bookings first')}</div><p class="hint" id="imsg" role="status"></p><div class="r"><span class="sp"></span><button data-x>Close</button><button class="pri" id="igo" disabled>Import</button></div></div>`;
+  o.innerHTML=`<div class="dlg" style="width:540px"><h3>Import from Float</h3><p class="hint">Choose the CSV you exported from Float. Nothing is saved until you click Import.</p><input type="file" id="ifile" accept=".csv,text/csv"><div id="isum" style="margin-top:12px;font-size:13px"></div><div id="iopt" hidden style="margin-top:8px">${ck('o-lv',1,'Import time off as Leave bookings')}${ck('o-hol',1,'Import South African public holidays')}${ck('o-non',0,'Also import non-South-African holidays')}<p class="hint">Merge with existing data. Matching bookings are skipped; earlier years and manual bookings are kept.</p></div><p class="hint" id="imsg" role="status"></p><div class="r"><span class="sp"></span><button data-x>Close</button><button class="pri" id="igo" disabled>Import</button></div></div>`;
   const q=s=>o.querySelector(s),msg=t=>{q('#imsg').textContent=t};let P=null,armed=false;
   q('[data-x]').onclick=closeModal;
   q('#ifile').onchange=async e=>{
@@ -1013,16 +1022,15 @@ function openImport(){
   q('#igo').onclick=async()=>{
     if(!P)return;
     if(!db||!db.batch){msg('The import needs the shared database.');return}
-    const opt={leave:q('#o-lv').checked,hol:q('#o-hol').checked,non:q('#o-non').checked,replace:q('#o-rep').checked,all:q('#o-all').checked};
-    if(opt.all&&!armed){armed=true;q('#igo').textContent='Click again to delete all bookings and import';return}
+    const opt={leave:q('#o-lv').checked,hol:q('#o-hol').checked,non:q('#o-non').checked};
     const {ops,st}=buildFloatOps(P,opt);
     ops.push({op:'set',coll:'log',id:'l'+uid(),data:{text:`imported from Float: ${st.newPeople} new people, ${st.newClients} new clients, ${st.newProjects} new projects, ${st.bookings} bookings, ${st.leave} time-off bookings, ${st.holidays} holidays`+(st.removed?`, removed ${st.removed} earlier bookings`:'')}});
     q('#igo').disabled=true;q('#ifile').disabled=true;
     try{
       await db.batch(ops,(d,t)=>msg(`Saving ${d} of ${t}...`));
-      msg(`Done. Added ${st.newPeople} people, ${st.newClients} clients, ${st.newProjects} projects, ${st.bookings} bookings, ${st.leave} time-off bookings and ${st.holidays} holidays.`+(st.removed?` Removed ${st.removed} earlier bookings.`:''));
+      msg(`Done. Added ${st.newPeople} people, ${st.newClients} clients, ${st.newProjects} projects, ${st.bookings} bookings, ${st.leave} time-off bookings and ${st.holidays} holidays. Skipped ${st.skipped} matching bookings.`);
       q('#igo').hidden=true;
-    }catch(err){msg('The import stopped part-way: '+err.message+'. You can run it again; Replace earlier import is on by default.');q('#igo').disabled=false;q('#ifile').disabled=false}
+    }catch(err){msg('The import stopped part-way: '+err.message+'. You can run the import again safely; matching bookings will be skipped.');q('#igo').disabled=false;q('#ifile').disabled=false}
   };
   o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
 }
@@ -1036,7 +1044,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-trp]');if(
 /* ---------- project details pane, assignments, board filter ---------- */
 function addAssignment(pid,projId,dates){
   if(dates===null)return;
-  const pr=proj(projId);if(!pr)return;const selected=dates||(pr.start&&pr.end?{start:pr.start,end:pr.end}:null);if(state.allocs.some(a=>a.person===pid&&a.proj===projId&&(!selected||(eff(a).start===selected.start&&eff(a).end===selected.end))))return;
+  const pr=proj(projId);if(!pr)return;const selected=dates||(pr.start&&pr.end?{start:pr.start,end:pr.end}:null);if(!isEnvisioning(pr)&&state.allocs.some(a=>a.person===pid&&a.proj===projId&&(!selected||(eff(a).start===selected.start&&eff(a).end===selected.end))))return;
   if(isLinked(pr)&&!pr.start){const s=nextWork(lowerBound(todayISO),1);if(s>=0){pr.start=cols[s];pr.end=cols[addWork(s,5)];put('projects',pr)}}
   const n={id:uid(),person:pid,proj:projId,hrs:pr.leave?maxCap(state.people.find(p=>p.id===pid)||{cap:8}):4,...(dates?{start:dates.start,end:dates.end,own:true}: {})};state.allocs.push(n);put('allocs',n);
 }
