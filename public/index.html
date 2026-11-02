@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="resource-manager-build" content="2026.11.02-r2">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Capacity Planner</title>
 <link rel="icon" type="image/png" href="./rmicon.png?v=1">
@@ -57,7 +58,7 @@ aside h2{font-size:12px;font-weight:600;color:var(--mute);margin:14px 0 6px}asid
 .danger{color:#c4303f}
 .empty{padding:40px;color:var(--mute)}
 .al{background:var(--c);border:2px solid color-mix(in srgb,var(--c) 65%,#000)}
-.al.tent{background:color-mix(in srgb,var(--c) 30%,var(--panel));border:2px dotted var(--c);color:var(--ink)}
+.al.tent{background:transparent!important;border:2px solid var(--c);color:var(--ink);box-shadow:none}
 .cg{margin-bottom:12px}.ch{display:flex;align-items:center;gap:6px;margin-bottom:5px}.ch i{width:10px;height:10px;border-radius:50%;flex:none}.ch b{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ch button{padding:1px 7px;font-size:12px}
 .chip .cn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 button.ed{padding:0 6px;border:none;background:none;color:var(--mute)}
@@ -166,10 +167,15 @@ body.zoomed-out .al{font-size:14px}body.zoomed-out .al small{font-size:12px}body
 .team-filters button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .work-days{margin-top:12px;border:1px solid var(--line2);border-radius:6px;padding:8px}.work-days summary{cursor:pointer;color:var(--mute);font-size:12px}
 
+.track .al{margin:0;box-sizing:border-box}
+body.split-booking .track,body.split-booking .track *{cursor:col-resize!important}body.delete-bookings .track,body.delete-bookings .track *{cursor:crosshair!important}body.delete-bookings #delete-mode-note{display:inline!important}.booking-menu{position:fixed;z-index:100;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:6px;box-shadow:0 6px 20px #0003;display:flex;flex-direction:column;gap:4px;min-width:180px}.booking-menu button{text-align:left}.booking-menu .hint{padding:3px 6px}
+body[data-role=contributor] .client-name[data-eclient]{display:block!important;cursor:default}
 .al{background:var(--bar-bg,var(--c));color:var(--bar-ink,#fff)}
-.al.tent{background:var(--bar-bg);color:var(--bar-ink)}
+.al.tent{background:transparent!important;color:var(--ink)}
 aside .team-heading{border-top:2px solid var(--line2);padding-top:16px;margin-top:20px;font-size:16px;font-weight:700;color:var(--ink)}
 aside .team-heading button{font-size:inherit;font-weight:inherit}
+.resource-heading{display:flex;align-items:center;gap:6px}.resource-heading b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.resource-toggle{flex:none;width:24px;height:24px;padding:0;line-height:1;border-color:transparent;background:transparent}.resource-collapsed .who{padding-top:9px;padding-bottom:9px}.resource-collapsed .who>span,.resource-collapsed .tags,.resource-collapsed .bar,.resource-collapsed .rh{display:none}.resource-collapsed .track{pointer-events:none}
+.track{background-image:none}.off{background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--ink) 4%,transparent) 0 3px,color-mix(in srgb,var(--ink) 1.5%,transparent) 3px 7px)}.off.hol{background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--ink) 6%,transparent) 0 3px,color-mix(in srgb,var(--ink) 2%,transparent) 3px 7px)}.leave-day{background:color-mix(in srgb,var(--ink) 9%,transparent)}.dy .we,.dy .ph{background:color-mix(in srgb,var(--ink) 4%,var(--panel));color:var(--mute)}.dy .ph b{color:var(--mute)}.track .al.leave{background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--ink) 5%,var(--panel)) 0 5px,var(--panel) 5px 10px)!important}.track .al.tent{background:transparent!important;border:2px solid var(--c);color:var(--ink);box-shadow:none}.dy div{overflow:hidden}
 </style>
 <script>
 try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}
@@ -177,9 +183,9 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
 </head>
 <body>
 <header>
-  <details id="settings"><summary>Settings</summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button></nav></details>
+  <details id="settings"><summary>Settings</summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button><span id="build-version" class="hint" style="padding:5px">Build 2026.11.02-r2</span></nav></details>
   <h1>Capacity planner</h1>
-  <button id="pane">Hide projects</button><button id="today">Today</button><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label" class="hint">100%</span><button id="zoom-in" aria-label="Zoom in">+</button>
+  <button id="pane">Hide projects</button><button id="today">Today</button><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label" class="hint">100%</span><button id="zoom-in" aria-label="Zoom in">+</button><button id="undo" disabled title="Undo last change" aria-label="Undo">&#8630;</button><button id="redo" disabled title="Redo last change" aria-label="Redo">&#8631;</button>
   <span class="sp"></span>
   <select id="pf" aria-label="Filter by client or project"></select><select id="srt" aria-label="Sort team"><option value="custom">Sort: added order</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="title">Job title A–Z</option></select><button id="skb">Skills</button><input id="flt" placeholder="Search team, skills, clients or projects" aria-label="Search team, skills, clients or projects" style="width:250px"><button id="act" hidden>Activity</button><span id="status" class="hint">Connecting…</span><span id="pres" class="pres"></span>
 <button id="theme-toggle" class="icon-button" aria-label="Switch colour mode" title="Switch colour mode"></button>
@@ -229,6 +235,9 @@ function seed(){
 }
 let state={clients:[],holidays:[],users:[],projects:[],people:[],allocs:[]};
 let filterQ='';
+let collapsedResources={};try{const saved=JSON.parse(localStorage.getItem('planner-collapsed-resources')||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))collapsedResources=saved}catch(e){}
+document.addEventListener('click',e=>{const button=e.target.closest('[data-resource-expand-all],[data-resource-collapse-all]');if(!button)return;e.preventDefault();e.stopImmediatePropagation();const collapse=button.hasAttribute('data-resource-collapse-all');sortedPeople().forEach(p=>{collapsedResources[p.id]=collapse});try{localStorage.setItem('planner-collapsed-resources',JSON.stringify(collapsedResources))}catch(err){}render();document.querySelector(collapse?'[data-resource-collapse-all]':'[data-resource-expand-all]')?.focus()},true);
+document.addEventListener('click',e=>{const button=e.target.closest('[data-collapse-resource]');if(!button)return;e.preventDefault();e.stopImmediatePropagation();const id=button.dataset.collapseResource;collapsedResources[id]=!collapsedResources[id];try{localStorage.setItem('planner-collapsed-resources',JSON.stringify(collapsedResources))}catch(err){}render();document.querySelectorAll('[data-collapse-resource]').forEach(b=>{if(b.dataset.collapseResource===id)b.focus()})},true);
 let rowH={};try{rowH=JSON.parse(localStorage.getItem('planner-rowh')||'{}')}catch(e){}
 const saveRowH=()=>{try{localStorage.setItem('planner-rowh',JSON.stringify(rowH))}catch(e){}};
 const ls={get(k,d){try{const v=localStorage.getItem('planner-'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('planner-'+k,JSON.stringify(v))}catch(e){}}};
@@ -242,14 +251,14 @@ let pf='';
 const STG={active:'Active',hired:'Hired, starting soon',offer:'Offer made',interview:'Interviewing',screening:'Screening',sourcing:'Sourcing',inactive:'Inactive',archived:'Archived'};
 const atLeast=r=>(rank[myRole]||0)>=rank[r];
 const matches=p=>(!filterQ||personProjectMatch(p)||(p.name+' '+(p.role||'')+' '+(p.emp||'')+' '+(p.stage&&p.stage!=='active'?STG[p.stage]:'')+' '+(p.skills||[]).join(' ')).toLowerCase().includes(filterQ))&&(!skillSel.size||(p.skills||[]).some(s=>skillSel.has(s)));
-const sortedPeople=()=>{const l=state.people.filter(matches).filter(p=>!pf||state.allocs.some(a=>a.person===p.id&&visAlloc(a)));if(sortBy==='name')l.sort((a,b)=>a.name.localeCompare(b.name));else if(sortBy==='name-desc')l.sort((a,b)=>b.name.localeCompare(a.name));else if(sortBy==='title')l.sort((a,b)=>(a.role||'~').localeCompare(b.role||'~')||a.name.localeCompare(b.name));return l};
+const sortedPeople=()=>{const l=state.people.filter(p=>String(p.stage||'').toLowerCase()!=='archived').filter(matches).filter(p=>!pf||state.allocs.some(a=>a.person===p.id&&visAlloc(a)));if(sortBy==='name')l.sort((a,b)=>a.name.localeCompare(b.name));else if(sortBy==='name-desc')l.sort((a,b)=>b.name.localeCompare(a.name));else if(sortBy==='title')l.sort((a,b)=>(a.role||'~').localeCompare(b.role||'~')||a.name.localeCompare(b.name));return l};
 let db=null,readOnly=false,synced=false,dirty=false;
 function loadLocal(){try{const s=localStorage.getItem(KEY);return s?JSON.parse(s):null}catch(e){return null}}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
 function setStatus(t){const s=document.getElementById('status');if(s)s.textContent=t}
 function fail(e){setStatus('Save failed: '+((e&&(e.message||e.code))||'unknown error'))}
-function put(kind,obj){recordOwnership(kind,obj);if(!db){saveLocal();return}const r={...obj};delete r.id;db.collection(kind).doc(obj.id).set(r).catch(fail);logChange(kind,obj.id,r)}
-function del(kind,id){if(!db){saveLocal();return}db.collection(kind).doc(id).delete().catch(fail);logChange(kind,id,null)}
+function put(kind,obj){recordOwnership(kind,obj);captureEdit(kind,obj.id,obj);if(!db){shadow[kind+'/'+obj.id]=JSON.stringify(historyValue(obj));saveLocal();return}const r={...obj};delete r.id;db.collection(kind).doc(obj.id).set(r).catch(fail);logChange(kind,obj.id,r)}
+function del(kind,id){captureEdit(kind,id,null);if(!db){delete shadow[kind+'/'+id];saveLocal();return}db.collection(kind).doc(id).delete().catch(fail);logChange(kind,id,null)}
 function sortAll(){state.clients.sort((a,b)=>(a.n||0)-(b.n||0));state.projects.sort((a,b)=>(a.leave?1:0)-(b.leave?1:0)||(a.n||0)-(b.n||0));state.people.sort((a,b)=>(a.n||0)-(b.n||0)||a.name.localeCompare(b.name))}
 function refresh(){if(drag){dirty=true;return}render()}
 async function connect(){
@@ -275,10 +284,16 @@ const proj=id=>state.projects.find(p=>p.id===id);
 const client=id=>state.clients.find(c=>c.id===id);
 const colorOf=p=>p.leave?'#9aa1b5':(client(p.clientId)?.color||p.color||'#5c6370');
 const labelOf=p=>{const c=client(p.clientId);return c?c.name+' / '+p.name:p.name};
+const isEnvisioning=p=>!!p&&/\benvisionings?\b/i.test(p.name||'');
 const isLinked=p=>!!p&&!p.leave&&!!client(p.clientId);
+function isCRMTeamSupport(p){if(!p||p.leave)return false;const name=labelOf(p).normalize('NFKC').toLowerCase().replace(/[^a-z0-9]+/g,' ');return /\b(?:the )?crm team\b/.test(name)&&/\bsupport\b/.test(name)}
 const eff=a=>{const pr=proj(a.proj);return isLinked(pr)&&pr.start&&pr.end&&!a.own?{...a,start:pr.start,end:pr.end}:a};
 const visAlloc=a=>{if(filterQ&&!personTextMatch(a.person)&&!projectSearchMatch(a.proj))return false;if(!pf)return true;const pr=proj(a.proj);if(!pr)return false;return pf[0]==='c'?pr.clientId===pf.slice(2):a.proj===pf.slice(2)};
-let offA=[],holMap={};
+let offA=[],holMap={},columnWidths=[],columnOffsets=[0];
+const colWidth=i=>columnWidths[i]||DW;
+const colX=i=>i<0?i*DW:i>=columnOffsets.length?columnOffsets[columnOffsets.length-1]+(i-cols.length)*DW:columnOffsets[i];
+function colAt(x){if(x<0)return Math.floor(x/DW);if(x>=colX(cols.length))return cols.length+Math.floor((x-colX(cols.length))/DW);let lo=0,hi=cols.length;while(lo<hi){const mid=(lo+hi)>>1;if(columnOffsets[mid+1]<=x)lo=mid+1;else hi=mid}return lo}
+function sizeColumns(){columnWidths=cols.map((c,i)=>offA[i]?DW/2:DW);columnOffsets=[0];columnWidths.forEach(w=>columnOffsets.push(columnOffsets[columnOffsets.length-1]+w))}
 const nextWork=(i,dir)=>{i=Math.max(0,Math.min(i,cols.length-1));while(i>=0&&i<cols.length&&offA[i])i+=dir;return i<0||i>=cols.length?-1:i};
 const addWork=(a,n)=>{let i=a,k=1;while(k<n){const j=nextWork(i+1,1);if(j<0)break;i=j;k++}return i};
 const wcount=(a,b)=>{let k=0;for(let i=a;i<=b;i++)if(!offA[i])k++;return Math.max(1,k)};
@@ -318,17 +333,17 @@ function teamGroups(people=state.people){
 }
 function render(){
   sortAll();buildCols();holMap=saHolidays();state.holidays.forEach(h=>holMap[h.id]=h.name||'Public holiday');offA=cols.map(c=>{const g=parse(c).getDay();return g===0||g===6?1:(holMap[c]?2:0)});wdA=cols.map(c=>parse(c).getDay());
-  const W=cols.length*DW, el=document.getElementById('content');
+  sizeColumns();const W=colX(cols.length), el=document.getElementById('content');
   el.style.width=(200+W)+'px';
   // header
   let wk='',dy='';
   for(let w=0;w<range.weeks;w++){
     const d=parse(cols[w*7]);
     const lbl=d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-    wk+=`<div style="width:${7*DW}px">${d.getDate()<=7||w===0?'<b>'+d.toLocaleDateString('en-GB',{month:'long',year:'numeric'})+'</b> · ':''}${lbl}</div>`;
+    wk+=`<div style="width:${colX(w*7+7)-colX(w*7)}px">${d.getDate()<=7||w===0?'<b>'+d.toLocaleDateString('en-GB',{month:'long',year:'numeric'})+'</b> · ':''}${lbl}</div>`;
   }
-  cols.forEach((c,i)=>{const d=parse(c);const k=offA[i];dy+=`<div style="width:${DW}px" class="${c===todayISO?'td':''} ${k===1?'we':k===2?'ph':''}" ${k===1?'':`data-hd="${c}" title="${esc(k===2?holMap[c]+' (click to edit)':'Click to mark as a public holiday')}"`}>${'MTWTFSS'[(d.getDay()+6)%7]}<b>${d.getDate()}</b></div>`});
-  let html=`<div class="hrow"><div class="corner">${state.people.filter(matches).length} of ${state.people.length} people</div><div class="hdr" style="width:${W}px"><div class="wk">${wk}</div><div class="dy">${dy}</div></div></div>`;
+  cols.forEach((c,i)=>{const d=parse(c);const k=offA[i];dy+=`<div style="width:${colWidth(i)}px" class="${c===todayISO?'td':''} ${k===1?'we':k===2?'ph':''}" ${k===1?'':`data-hd="${c}" title="${esc(k===2?holMap[c]+' (click to edit)':'Click to mark as a public holiday')}"`}>${'MTWTFSS'[(d.getDay()+6)%7]}<b>${d.getDate()}</b></div>`});
+  let html=`<div class="hrow"><div class="corner" style="align-items:center;gap:5px;flex-wrap:wrap"><span style="flex:1">${sortedPeople().length} of ${state.people.filter(p=>p.stage!=='archived').length} people</span><button type="button" data-resource-expand-all aria-label="Expand all displayed resource rows" title="Expand all resource rows" style="padding:2px 7px">+</button><button type="button" data-resource-collapse-all aria-label="Collapse all displayed resource rows" title="Collapse all resource rows" style="padding:2px 7px">&minus;</button></div><div class="hdr" style="width:${W}px"><div class="wk">${wk}</div><div class="dy">${dy}</div></div></div>`;
   const tIdx=cols.indexOf(todayISO);
   const weekStart=visibleWeek();const thisWk=cols.map((c,i)=>[c,i]).filter(([c])=>c>=weekStart&&c<=addDays(weekStart,6)).map(x=>x[1]).filter(i=>offA[i]!==2);
   sortedPeople().forEach(p=>{
@@ -337,18 +352,26 @@ function render(){
     mine.forEach(x=>{let y=0;for(let i=x.s[0];i<=x.s[1];i++)y=Math.max(y,stk[i]);x.y=y;for(let i=x.s[0];i<=x.s[1];i++){stk[i]=y+x.a.hrs;if(!offP[i]){dayAll[i]=(dayAll[i]||0)+x.a.hrs;if(!proj(x.a.proj)?.leave)day[i]=(day[i]||0)+x.a.hrs}}
       });
     const peak=Math.max(maxCap(p),...stk),PPH=22;
-    const h=rowH[p.id]?Math.max(44,rowH[p.id]):PAD*2+peak*PPH;
-    const pph=(h-PAD*2)/peak;
+    const collapsed=!!collapsedResources[p.id];let h=collapsed?44:(rowH[p.id]?Math.max(44,rowH[p.id]):PAD*2+peak*PPH);
+    const pph=Math.max(.01,(h-PAD*2)/Math.max(1,peak));
+    // Pack actual rendered pixels per working day, including the minimum bar height.
+    const pixelStack=new Array(cols.length).fill(PAD);
+    mine.forEach(x=>{x.height=Math.max(24,Number(x.a.hrs)*pph);x.parts=[];
+      for(let i=x.s[0];i<=x.s[1];i++){if(offP[i])continue;const y=pixelStack[i];pixelStack[i]+=x.height;
+        const last=x.parts[x.parts.length-1];if(last&&last[1]===i-1&&Math.abs(last[2]-y)<.001)last[1]=i;else x.parts.push([i,i,y]);
+      }
+    });
+    if(!collapsed)h=Math.max(h,...pixelStack.map(y=>y+PAD));
     let util=0;thisWk.forEach(i=>util+=day[i]||0);let capw=0;thisWk.forEach(i=>capw+=capOn(p,i));const pct=Math.round(util/Math.max(1,capw)*100);const flag=weeklyFlag(p,weekStart);
-    let tr='';
-    if(tIdx>=0)tr+=`<div class="col-td" style="left:${tIdx*DW}px;width:${DW}px"></div>`;
-    for(const i in dayAll)if(dayAll[i]>capOn(p,i)+0.001)tr+=`<div class="ov" style="left:${i*DW}px;width:${DW}px"></div>`;
-    for(let w=0;w<range.weeks;w++)tr+=`<div class="wkl" style="left:${w*7*DW}px"></div>`;
-    cols.forEach((c,i)=>{if(offP[i])tr+=`<div class="off${offA[i]===2?' hol':''}" style="left:${i*DW}px;width:${DW}px"></div>`});
-    cols.forEach((date,i)=>{const leave=state.allocs.filter(a=>a.person===p.id&&proj(a.proj)?.leave&&eff(a).start<=date&&eff(a).end>=date).reduce((n,a)=>n+Number(a.hrs||0),0);if(leave>=8)tr+=`<div class="leave-day" style="left:${i*DW}px;width:${DW}px" title="Full day unavailable"></div>`});
-    mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};segs(x.s[0],x.s[1],offP).forEach(([si,sj],k,arr)=>{
-      tr+=`<div class="al ${pr.leave?'leave':(effectiveBookingStatus(x.a)==='tentative'?'tent':'')}${x.a.hrs*pph<36?' sh':''}" data-id="${x.a.id}" title="${esc(barName(pr,p)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${si*DW+1}px;width:${(sj-si+1)*DW-2}px;top:${PAD+x.y*pph}px;height:${Math.max(12,x.a.hrs*pph-2)}px;--c:${colorOf(pr)};${barAppearance(pr,x.a)}"><span class="nm"${x.a.hrs*pph>=52?' style="white-space:normal"':''}>${x.a.hrs*pph>=52?barTall(pr,p):esc(barName(pr,p))}</span><small>${x.a.hrs}h/day${!pr.leave&&effectiveBookingStatus(x.a)==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
-    html+=`<div class="row" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><b>${esc(p.name)}</b>${flag}<span>${esc(p.role||'')} · ${pct}% selected week</span><div class="tags">${dayLabel(p)?'<em>'+esc(dayLabel(p))+'</em>':''}${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
+    let tr=cols.map((_,i)=>`<div class="wkl" style="left:${colX(i)}px;opacity:.4"></div>`).join('');
+    if(tIdx>=0)tr+=`<div class="col-td" style="left:${colX(tIdx)}px;width:${colWidth(tIdx)}px"></div>`;
+    for(const i in dayAll)if(dayAll[i]>capOn(p,i)+0.001)tr+=`<div class="ov" style="left:${colX(Number(i))}px;width:${colWidth(Number(i))}px"></div>`;
+    for(let w=0;w<range.weeks;w++)tr+=`<div class="wkl" style="left:${colX(w*7)}px"></div>`;
+    cols.forEach((c,i)=>{if(offP[i])tr+=`<div class="off${offA[i]===2?' hol':''}" style="left:${colX(Number(i))}px;width:${colWidth(Number(i))}px"></div>`});
+    cols.forEach((date,i)=>{const leave=state.allocs.filter(a=>a.person===p.id&&proj(a.proj)?.leave&&eff(a).start<=date&&eff(a).end>=date).reduce((n,a)=>n+Number(a.hrs||0),0);if(leave>=8)tr+=`<div class="leave-day" style="left:${colX(Number(i))}px;width:${colWidth(Number(i))}px" title="Full day unavailable"></div>`});
+    if(!collapsed)mine.forEach(x=>{const pr=proj(x.a.proj)||{name:'?',color:'#888'};x.parts.forEach(([si,sj,top],k,arr)=>{
+      tr+=`<div class="al ${pr.leave?'leave':(effectiveBookingStatus(x.a)==='tentative'?'tent':'')}${x.height<36?' sh':''}" data-id="${x.a.id}" title="${esc(barName(pr,p)+(x.a.comment?' — '+x.a.comment:''))}" style="left:${colX(si)+1}px;width:${colX(sj+1)-colX(si)-2}px;top:${top}px;height:${x.height}px;--c:${colorOf(pr)};${barAppearance(pr,x.a)}"><span class="nm"${x.height>=52?' style="white-space:normal"':''}>${x.height>=52?barTall(pr,p):esc(barName(pr,p))}</span><small>${x.a.hrs}h/day${!pr.leave&&effectiveBookingStatus(x.a)==='tentative'?' · tentative':''}${x.a.comment?' 💬':''}</small>${atLeast('manager')?'<span class="rv" title="Drag to change hours per day"></span>':''}${k===arr.length-1?'<span class="rz"></span>':''}</div>`});});
+    html+=`<div class="row${collapsed?' resource-collapsed':''}" style="height:${h}px"><div class="who" data-edit="${p.id}" title="Edit ${esc(p.name)}"><div class="resource-heading"><button type="button" class="resource-toggle" data-collapse-resource="${esc(p.id)}" aria-expanded="${!collapsed}" aria-label="${collapsed?'Expand':'Collapse'} row for ${esc(p.name)}" title="${collapsed?'Expand':'Collapse'} resource row">${collapsed?'&#9656;':'&#9662;'}</button><b>${esc(p.name)}</b></div>${flag}<span>${esc(p.role||'')} · ${pct}% selected week</span><div class="tags">${dayLabel(p)?'<em>'+esc(dayLabel(p))+'</em>':''}${p.emp==='contractor'?'<em class="ct">Contractor</em>':''}${p.stage&&p.stage!=='active'?'<em class="st">'+esc(STG[p.stage]||p.stage)+'</em>':''}${(p.skills||[]).map(s=>`<em>${esc(s)}</em>`).join('')}</div><div class="bar"><u class="${pct>100?'o':''}" style="width:${Math.min(100,pct)}%"></u></div><div class="rh" data-rh="${p.id}" title="Drag to resize this row. Double-click to reset."></div></div><div class="track" data-p="${p.id}" data-bh="${Math.round(pph*4)}" data-pph="${pph}" style="width:${W}px;--dw:${DW}px">${tr}</div></div>`;
   });
   if(!state.people.length)html+='<div class="empty">'+(db&&!synced?'Loading the shared plan…':'Add a team member in the sidebar to start planning.')+'</div>';
   el.innerHTML=html;
@@ -358,12 +381,27 @@ function render(){
 
 /* ---------- drag and drop ---------- */
 const sc=document.getElementById('scroller');
+let deleteBookingMode=false,splitBookingMode=null;
+function clearSplitPreview(){document.querySelector('.split-preview')?.remove()}
+function stopSplitBooking(){splitBookingMode=null;clearSplitPreview();document.body.classList.remove('split-booking');document.getElementById('split-mode-note')?.remove()}
+function startSplitBooking(id){setDeleteBookingMode(false);stopSplitBooking();splitBookingMode={id,date:null};document.body.classList.add('split-booking');closeBookingMenu();const note=document.createElement('span');note.id='split-mode-note';note.className='hint';note.textContent='Split: move over the booking and click. Right-click or Esc to cancel.';document.querySelector('header').appendChild(note)}
+function previewSplitBooking(e){clearSplitPreview();if(!splitBookingMode)return;splitBookingMode.date=null;const a=state.allocs.find(x=>x.id===splitBookingMode.id),track=e.target.closest('.track');if(!a||!track||track.dataset.p!==a.person)return;const idx=colAt(e.clientX-track.getBoundingClientRect().left),date=cols[idx],dates=eff(a);if(!date||date<=dates.start||date>dates.end||!capOn(state.people.find(p=>p.id===a.person),idx))return;splitBookingMode.date=date;const marker=document.createElement('div');marker.className='split-preview';marker.style.cssText='position:absolute;top:0;bottom:0;left:'+colX(idx)+'px;border-left:2px dashed var(--accent);pointer-events:none;z-index:18';marker.innerHTML='<span style="position:absolute;top:0;left:3px;background:var(--panel);color:var(--ink);border:1px solid var(--accent);border-radius:4px;padding:3px 6px;white-space:nowrap;font-size:12px">Split before '+esc(fmtD(date))+'</span>';track.appendChild(marker)}
+document.addEventListener('pointermove',e=>{if(splitBookingMode)previewSplitBooking(e)},true);
+document.addEventListener('click',e=>{if(!splitBookingMode||e.target.closest('.booking-menu'))return;if(!e.target.closest('#scroller'))return;e.preventDefault();e.stopImmediatePropagation();previewSplitBooking(e);const choice=splitBookingMode;if(!choice.date)return;stopSplitBooking();splitBooking(choice.id,choice.date)},true);
+function closeBookingMenu(){document.querySelector('.booking-menu')?.remove()}
+function setDeleteBookingMode(on){deleteBookingMode=on;document.body.classList.toggle('delete-bookings',on);let note=document.getElementById('delete-mode-note');if(!note){note=document.createElement('span');note.id='delete-mode-note';note.className='hint';note.style.display='none';note.textContent='Delete mode: click bookings to delete. Right-click to exit.';document.querySelector('header').appendChild(note)}note.style.display=on?'inline':'none';closeBookingMenu()}
+function deleteBooking(id){if(readOnly||!atLeast('manager'))return;const a=state.allocs.find(x=>x.id===id);if(!a)return;state.allocs=state.allocs.filter(x=>x.id!==id);del('allocs',id);closePop();render()}
+function splitBooking(id,date){if(readOnly||!atLeast('manager'))return;const a=state.allocs.find(x=>x.id===id);if(!a)return;const dates=eff(a);if(!date||date<=dates.start||date>dates.end)return;const right={...copyEdit(a),id:uid(),start:date,end:dates.end,own:true};a.start=dates.start;a.end=addDays(date,-1);a.own=true;put('allocs',a);state.allocs.push(right);put('allocs',right);closeBookingMenu();closePop();render()}
+document.addEventListener('contextmenu',e=>{if(splitBookingMode||deleteBookingMode){e.preventDefault();e.stopImmediatePropagation();stopSplitBooking();setDeleteBookingMode(false);return}const bar=e.target.closest('.track .al');if(!bar){closeBookingMenu();return}if(readOnly||!atLeast('manager'))return;e.preventDefault();closeBookingMenu();closePop();const a=state.allocs.find(x=>x.id===bar.dataset.id);if(!a)return;const track=bar.closest('.track'),idx=colAt(e.clientX-track.getBoundingClientRect().left),date=cols[idx],dates=eff(a),canSplit=dates.end>dates.start;const menu=document.createElement('div');menu.className='booking-menu';menu.setAttribute('role','menu');menu.innerHTML=`<span class="hint">${esc(proj(a.proj)?.name||'Booking')}</span><button type="button" role="menuitem" data-split-booking ${canSplit?'':'disabled'}>Split</button><button type="button" role="menuitem" class="danger" data-delete-booking>Delete</button>`;document.body.appendChild(menu);menu.style.left=Math.max(8,Math.min(e.clientX,innerWidth-menu.offsetWidth-8))+'px';menu.style.top=Math.max(8,Math.min(e.clientY,innerHeight-menu.offsetHeight-8))+'px';menu.querySelector('[data-split-booking]').onclick=()=>startSplitBooking(a.id);menu.querySelector('[data-delete-booking]').onclick=()=>{setDeleteBookingMode(true);deleteBooking(a.id)};menu.querySelector('button:not([disabled])')?.focus()},true);
+document.addEventListener('pointerdown',e=>{if(e.button!==0)return;if((deleteBookingMode||splitBookingMode)&&e.target.closest('#scroller')){e.preventDefault();e.stopImmediatePropagation();return}if(!e.target.closest('.booking-menu'))closeBookingMenu()},true);
+document.addEventListener('click',e=>{if(!deleteBookingMode||!e.target.closest('#scroller'))return;e.preventDefault();e.stopImmediatePropagation();const bar=e.target.closest('.al');if(bar)deleteBooking(bar.dataset.id)},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeBookingMenu();stopSplitBooking();if(deleteBookingMode)setDeleteBookingMode(false)}});
 let drag=null,ghost=null;
 function firstTrack(){return document.querySelector('.track')}
 function target(e){
   const t=firstTrack();if(!t)return null;
   const r=t.getBoundingClientRect();
-  const col=Math.floor((e.clientX-r.left)/DW);
+  const col=colAt(e.clientX-r.left);
   const tr=document.elementsFromPoint(e.clientX,e.clientY).map(n=>n.closest&&n.closest('.track')).find(Boolean);
   return{col,track:tr};
 }
@@ -389,12 +427,12 @@ document.addEventListener('pointermove',e=>{
   if(ghost){ghost.remove();ghost=null}
   drag.a=null;const t=target(e);if(!t||!t.track)return;
   let a,b;
-  if(drag.type==='new'){const pr=proj(drag.proj),ps=pr&&isLinked(pr)&&pr.start?span(pr):null;if(ps){a=ps[0];b=ps[1]}else{a=nextWork(t.col,1);b=a<0?-1:addWork(a,drag.len)}}
+  if(drag.type==='new'){a=nextWork(Math.max(0,t.col),1);b=a<0?-1:addWork(a,drag.len)}
   else if(drag.type==='move'){a=nextWork(Math.max(0,t.col-drag.off),1);b=a<0?-1:addWork(a,drag.n)}
   else{a=drag.s[0];const c=nextWork(t.col,-1);b=Math.max(a,c);t.track=drag.bar.closest('.track')}
   if(a<0||b<a)return;b=Math.min(b,cols.length-1);
   ghost=document.createElement('div');ghost.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:15';
-  segs(a,b).forEach(([i,j])=>{const g=document.createElement('div');g.className='ghost';g.style.cssText=`left:${i*DW+1}px;width:${(j-i+1)*DW-2}px;top:${PAD}px;height:${parseInt(t.track.dataset.bh)||BH}px`;ghost.appendChild(g)});
+  segs(a,b).forEach(([i,j])=>{const g=document.createElement('div');g.className='ghost';g.style.cssText=`left:${colX(i)+1}px;width:${colX(j+1)-colX(i)-2}px;top:${PAD}px;height:${parseInt(t.track.dataset.bh)||BH}px`;ghost.appendChild(g)});
   t.track.appendChild(ghost);drag.a=a;drag.b=b;drag.track=t.track;
 });
 document.addEventListener('pointerup',e=>{
@@ -404,7 +442,7 @@ document.addEventListener('pointerup',e=>{
   if(d.type==='hrs'){if(d.moved&&d.hrs!=null){const al=state.allocs.find(x=>x.id===d.id);if(al&&al.hrs!==d.hrs){al.hrs=d.hrs;put('allocs',al)}}render();return}
   if(!d.moved){if(d.bar)openPop(d.id,e);else if(d.proj)openDetails(d.proj);return}
   if(d.a==null||!d.track)return;
-  if(d.type==='new'){const pr=proj(d.proj),pid=d.track.dataset.p;if(isLinked(pr)){if(!pr.start){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr)}addAssignment(pid,d.proj)}else{const n={id:uid(),person:pid,proj:d.proj,start:cols[d.a],end:cols[d.b],hrs:pr&&pr.leave?8:4};state.allocs.push(n);put('allocs',n)}}
+  if(d.type==='new'){const pr=proj(d.proj),pid=d.track.dataset.p;if(!pr)return;if(isLinked(pr)&&!pr.start){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr)}addAssignment(pid,d.proj,{start:cols[d.a],end:cols[d.b]})}
   else{const al=state.allocs.find(x=>x.id===d.id);if(!al)return;const pr=proj(al.proj),pid=d.track.dataset.p;if(isLinked(pr)&&!al.own){pr.start=cols[d.a];pr.end=cols[d.b];put('projects',pr);if(d.type==='move'&&pid!==al.person&&!state.allocs.some(b=>b.person===pid&&b.proj===al.proj)){al.person=pid;put('allocs',al)}}else{al.start=cols[d.a];al.end=cols[d.b];if(d.type==='move'&&(!isLinked(pr)||!state.allocs.some(b=>b!==al&&b.person===pid&&b.proj===al.proj)))al.person=pid;put('allocs',al)}}
   render();
 });
@@ -416,12 +454,13 @@ function openPop(id,e){
   const a=state.allocs.find(x=>x.id===id);if(!a)return;
   const p=document.createElement('div');p.className='pop';
   const tent=effectiveBookingStatus(a)==='tentative';const prj=proj(a.proj);const linked=isLinked(prj);
-  const team=linked?state.allocs.filter(b=>b.proj===a.proj):[];
+  const support=isCRMTeamSupport(prj);
+  const team=linked?state.allocs.filter(b=>b.proj===a.proj&&(!support||b.id===a.id)):[];
   const freeP=linked?state.people.filter(q=>!team.some(b=>b.person===q.id)):[];
   const hist=[...(a.hist||[]),...((prj&&prj.hist)||[])].sort((x,y)=>y.at-x.at);
   const histHtml=hist.length?`<div class="act"><span class="hint">\u26a1 Updated by <b>${esc(hist[0].by)}</b> ${ago(hist[0].at)}</span><a id="pvc" role="button" tabindex="0">View changes</a></div><div id="hl" hidden>${hist.slice(0,10).map(h=>`<div class="hr"><b>${esc(h.by)}</b> ${esc(h.text)}<br><span class="hint">${ago(h.at)}</span></div>`).join('')}</div>`:`<div class="act"><span class="hint">\u26a1 No changes recorded yet</span></div>`;
   const ownHtml=a.own?`<div class="act"><span class="hint">Own dates: ${fmtD(a.start)} \u2013 ${fmtD(a.end)}</span><a id="pfw" role="button" tabindex="0">Follow project dates</a></div>`:'';
-  const assignHtml=linked?`<label for="pa">Assigned to</label><div class="as" id="as">${team.filter((b,i)=>team.findIndex(c=>c.person===b.person)===i).map(b=>{const q=state.people.find(x=>x.id===b.person);return `<span class="ch2">${esc(q?q.name:'Unknown')}<b data-rm2="${b.id}" role="button" aria-label="Remove from project">\u00d7</b></span>`}).join('')}<input id="pa" placeholder="${team.length?'Add people':'Add people to this project'}" autocomplete="off"></div><div id="sg" class="sg" hidden></div>`:'';
+  const assignHtml=support?`<label>Assigned to</label><div class="as" id="as"><span class="ch2">${esc(state.people.find(q=>q.id===a.person)?.name||'Unknown')}</span></div>`:linked?`<label for="pa">Assigned to</label><div class="as" id="as">${team.filter((b,i)=>team.findIndex(c=>c.person===b.person)===i).map(b=>{const q=state.people.find(x=>x.id===b.person);return `<span class="ch2">${esc(q?q.name:'Unknown')}<b data-rm2="${b.id}" role="button" aria-label="Remove from project">\u00d7</b></span>`}).join('')}<input id="pa" placeholder="${team.length?'Add people':'Add people to this project'}" autocomplete="off"></div><div id="sg" class="sg" hidden></div>`:'';
   const opt=x=>`<option value="${x.id}" ${x.id===a.proj?'selected':''}>${esc(x.name)}</option>`;
   const optg=sortedClients().map(c=>`<optgroup label="${esc(c.name)}">${state.projects.filter(x=>x.clientId===c.id).map(opt).join('')}</optgroup>`).join('')+state.projects.filter(x=>!client(x.clientId)).map(opt).join('');
   p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"><label for="pp">Project</label><select id="pp">${optg}</select><div class="two"><div><label for="booking-start">Start date</label><input type="date" id="booking-start" value="${eff(a).start||''}"></div><div><label for="booking-end">End date</label><input type="date" id="booking-end" value="${eff(a).end||''}"></div></div><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${ownHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
@@ -454,13 +493,13 @@ document.getElementById('addm').onclick=()=>{if(readOnly)return;const i=document
 document.addEventListener('click',e=>{const r=e.target.closest('[data-rm]');if(!r||!atLeast('admin'))return;
   if(r.dataset.arm!=='1'){r.dataset.arm='1';r.textContent='Remove?';r.style.width='auto';setTimeout(()=>{if(r.isConnected)render()},3000);return}
   const id=r.dataset.rm;state.allocs.filter(a=>a.person===id).forEach(a=>del('allocs',a.id));state.allocs=state.allocs.filter(a=>a.person!==id);state.people=state.people.filter(p=>p.id!==id);del('people',id);render()});
-function goToday(){const i=cols.indexOf(todayISO);sc.scrollLeft=Math.max(0,(i>=0?i:0)*DW-40)}
+function goToday(){const i=cols.indexOf(todayISO);sc.scrollLeft=Math.max(0,colX(i>=0?i:0)-40)}
 document.getElementById('today').onclick=goToday;
 let busy=false;
 sc.addEventListener('scroll',()=>{
   if(busy||drag)return;
   if(sc.scrollLeft+sc.clientWidth>sc.scrollWidth-300){busy=true;range.weeks+=12;render();busy=false}
-  else if(sc.scrollLeft<250){busy=true;range.start=addDays(range.start,-56);range.weeks+=8;const l=sc.scrollLeft;render();sc.scrollLeft=l+8*7*DW;busy=false}
+  else if(sc.scrollLeft<250){busy=true;range.start=addDays(range.start,-56);range.weeks+=8;const l=sc.scrollLeft;render();sc.scrollLeft=l+colX(56);busy=false}
 });
 /* ---------- modals: team, clients, projects ---------- */
 function closeModal(){document.querySelector('.ov-modal')?.remove()}
@@ -581,6 +620,21 @@ function openSkills(btn){
 document.getElementById('skb').onclick=e=>openSkills(e.currentTarget);
 /* ---------- activity log: who changed what ---------- */
 const shadow={};
+const undoStack=[],redoStack=[];let pendingEdit=null,replaying=false;
+const historyKinds=new Set(['clients','projects','people','allocs','holidays']);
+const copyEdit=x=>x==null?null:JSON.parse(JSON.stringify(x));
+const historyValue=x=>{if(!x)return null;const r=copyEdit(x);delete r.id;return r};
+const historyKey=value=>JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
+function historyButtons(){document.getElementById('undo').disabled=replaying||!undoStack.length||!atLeast('manager');document.getElementById('redo').disabled=replaying||!redoStack.length||!atLeast('manager')}
+function finishEdit(){if(!pendingEdit)return;const changes=[...pendingEdit.values()].filter(c=>historyKey(c.before)!==historyKey(c.after));pendingEdit=null;if(changes.length){undoStack.push(changes);if(undoStack.length>100)undoStack.shift();redoStack.length=0}historyButtons()}
+function captureEdit(kind,id,obj){if(replaying||!historyKinds.has(kind))return;const key=kind+'/'+id;if(!pendingEdit){pendingEdit=new Map();queueMicrotask(finishEdit)}const before=shadow[key]?JSON.parse(shadow[key]):null;const change=pendingEdit.get(key)||{kind,id,before:copyEdit(before)};change.after=historyValue(obj);pendingEdit.set(key,change)}
+async function replayEdit(redo=false){finishEdit();if(replaying||!atLeast('manager'))return;const source=redo?redoStack:undoStack,target=redo?undoStack:redoStack,entry=source[source.length-1];if(!entry)return;
+  for(const c of entry){const current=historyValue(state[c.kind].find(x=>x.id===c.id));if(historyKey(current)!==historyKey(redo?c.before:c.after)){setStatus('Cannot '+(redo?'redo':'undo')+': this record has changed since your edit.');return}}
+  replaying=true;historyButtons();closeModal();closePop();
+  try{for(const c of (redo?entry:[...entry].reverse())){const value=copyEdit(redo?c.after:c.before);state[c.kind]=state[c.kind].filter(x=>x.id!==c.id);if(value)state[c.kind].push({id:c.id,...value});if(db){if(value)await db.collection(c.kind).doc(c.id).set(value);else await db.collection(c.kind).doc(c.id).delete();logChange(c.kind,c.id,value)}else{if(value)shadow[c.kind+'/'+c.id]=JSON.stringify(value);else delete shadow[c.kind+'/'+c.id];saveLocal()}}source.pop();target.push(entry);sortAll();render()}catch(e){fail(e);undoStack.length=0;redoStack.length=0}finally{replaying=false;historyButtons()}
+}
+document.getElementById('undo').onclick=()=>replayEdit(false);document.getElementById('redo').onclick=()=>replayEdit(true);
+
 function describe(kind,id,obj,old){
   const cur=obj||old||{},out=[];
   const pn=i=>{const x=state.people.find(y=>y.id===i);return x?x.name:'someone'};
@@ -685,14 +739,14 @@ function openSlot(pid,idx,e,endIdx){
   closePop();
   const person=state.people.find(x=>x.id===pid);if(!person)return;
   const p=document.createElement('div');p.className='pop';p.style.width='290px';
-  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><button id="slot-new-project" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>+ New project</button><div id="sl" class="sl"></div><p class="hint">${endIdx!=null?'The booking uses your selected dates. If the project already has dates, only this person gets the selected dates and everyone else keeps the project timeline.':'Client projects keep one timeline for everyone, so a booking on an existing project appears on that project\'s dates.'}</p>`;
+  p.innerHTML=`<b>Add a project to ${esc(person.name)}</b><div class="hint">${endIdx!=null?esc(fmtD(cols[idx])+' \u2013 '+fmtD(cols[endIdx])):esc(parse(cols[idx]).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div><input id="sq" placeholder="Search projects" autocomplete="off" style="margin-top:8px"><button id="slot-new-project" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>+ New project</button><button id="slot-leave" style="margin-top:8px" ${atLeast('manager')?'':'hidden'}>${person.emp==='contractor'?'Unavailable':'Leave'}</button><div id="sl" class="sl"></div><p class="hint">${endIdx!=null?'The booking uses your selected dates. If the project already has dates, only this person gets the selected dates and everyone else keeps the project timeline.':'The booking starts on the selected date. Existing bookings keep their dates.'}</p>`;
   document.body.appendChild(p);
   p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-430))+'px';
   const draw=()=>{
     const q=p.querySelector('#sq').value.trim().toLowerCase();
     const match=pr=>!q||(labelOf(pr)+' '+(pr.code||'')).toLowerCase().includes(q);
-    const item=pr=>{const linked=isLinked(pr),taken=linked&&state.allocs.some(a=>a.person===pid&&a.proj===pr.id);
-      const sub=taken?'Already on this project':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):(endIdx!=null?(linked&&pr.start?'Your dates, for this person only':'Uses your selected dates'):'Starts here'));
+    const item=pr=>{const linked=isLinked(pr),taken=!isEnvisioning(pr)&&state.allocs.some(a=>a.person===pid&&a.proj===pr.id&&eff(a).start===cols[idx]&&eff(a).end===cols[endIdx!=null?endIdx:addWork(idx,5)]);
+      const sub=taken?'Already booked for these dates':(linked&&pr.start?fmtD(pr.start)+' \u2013 '+fmtD(pr.end):(endIdx!=null?(linked&&pr.start?'Your dates, for this person only':'Uses your selected dates'):'Starts here'));
       return `<div class="si${taken?' dis':''}" data-p="${pr.id}"><i style="background:${pr.leave?'#9aa1b5':colorOf(pr)}"></i><span>${esc(unav(pr,person)?'Unavailable':pr.name)}<br><span class="hint">${sub}</span></span></div>`};
     let html='';
     for(const c of state.clients){const ps=state.projects.filter(x=>x.clientId===c.id&&match(x));if(ps.length)html+=`<div class="sh">${esc(c.name)}</div>`+ps.map(item).join('')}
@@ -700,24 +754,21 @@ function openSlot(pid,idx,e,endIdx){
     p.querySelector('#sl').innerHTML=html||'<p class="hint">No projects match.</p>';
   };
   p.querySelector('#slot-new-project').onclick=()=>newSlotProject(pid,cols[idx],cols[endIdx!=null?endIdx:addWork(idx,5)],p.querySelector('#sq').value);
+  p.querySelector('#slot-leave').onclick=()=>{let pr=state.projects.find(x=>x.leave);if(!pr){pr={id:uid(),name:'Leave',leave:true,color:'#9aa1b5',n:Date.now()};state.projects.push(pr);put('projects',pr)}const a={id:uid(),person:pid,proj:pr.id,start:cols[idx],end:cols[endIdx!=null?endIdx:idx],hrs:maxCap(person)};state.allocs.push(a);put('allocs',a);closePop();render()};
   draw();const sq=p.querySelector('#sq');sq.oninput=draw;sq.focus();
   p.querySelector('#sl').onclick=ev=>{
     const d=ev.target.closest('.si');if(!d||d.classList.contains('dis'))return;
     const pr=proj(d.dataset.p);if(!pr)return;
     const end=cols[endIdx!=null?endIdx:addWork(idx,5)];
-    if(isLinked(pr)){
-      if(!pr.start){pr.start=cols[idx];pr.end=end;put('projects',pr);addAssignment(pid,pr.id)}
-      else if(pr.start!==cols[idx]||pr.end!==end){const n={id:uid(),person:pid,proj:pr.id,hrs:4,own:true,start:cols[idx],end};state.allocs.push(n);put('allocs',n)}
-      else addAssignment(pid,pr.id,{start:cols[idx],end});
-    }
-    else{const n={id:uid(),person:pid,proj:pr.id,start:cols[idx],end,hrs:pr.leave?maxCap(person):4};state.allocs.push(n);put('allocs',n)}
+    if(isLinked(pr)&&!pr.start){pr.start=cols[idx];pr.end=end;put('projects',pr)}
+    addAssignment(pid,pr.id,{start:cols[idx],end});
     closePop();render();
   };
 }
 document.addEventListener('click',e=>{
   if(!atLeast('manager')||Date.now()-lastDragEnd<400||!e.target.closest)return;
   const tr=e.target.closest('.track');if(!tr||e.target.closest('.al'))return;
-  const r=tr.getBoundingClientRect(),idx=Math.floor((e.clientX-r.left)/DW);
+  const r=tr.getBoundingClientRect(),idx=colAt(e.clientX-r.left);
   const person=state.people.find(x=>x.id===tr.dataset.p);
   if(!person||idx<0||idx>=cols.length||!capOn(person,idx))return;
   openSlot(person.id,idx,e);
@@ -729,12 +780,12 @@ function workRange(person,a,b){
   return lo<=hi?[lo,hi]:null;
 }
 let selState=null;
-const selIdx=(s,e)=>Math.max(0,Math.min(cols.length-1,Math.floor((e.clientX-s.tr.getBoundingClientRect().left)/DW)));
+const selIdx=(s,e)=>Math.max(0,Math.min(cols.length-1,colAt(e.clientX-s.tr.getBoundingClientRect().left)));
 document.addEventListener('pointerdown',e=>{
   if(e.button>0||e.pointerType==='touch'||readOnly||!atLeast('manager')||!e.target.closest)return;
   const tr=e.target.closest('.track');
   if(!tr||e.target.closest('.al,.rh,button,input,select,textarea,.pop'))return;
-  const idx=Math.floor((e.clientX-tr.getBoundingClientRect().left)/DW);
+  const idx=colAt(e.clientX-tr.getBoundingClientRect().left);
   const person=state.people.find(x=>x.id===tr.dataset.p);
   if(!person||idx<0||idx>=cols.length||!capOn(person,idx))return;
   selState={tr,person,a:idx,b:idx,x:e.clientX,moved:false,el:null};
@@ -751,7 +802,7 @@ document.addEventListener('pointermove',e=>{
   s.b=selIdx(s,e);
   const lo=Math.min(s.a,s.b),hi=Math.max(s.a,s.b);let n=0;
   for(let i=lo;i<=hi;i++)if(capOn(s.person,i))n++;
-  s.el.style.left=lo*DW+'px';s.el.style.width=(hi-lo+1)*DW+'px';
+  s.el.style.left=colX(lo)+'px';s.el.style.width=(colX(hi+1)-colX(lo))+'px';
   s.el.innerHTML='<span>'+n+' working day'+(n===1?'':'s')+'</span>';
 });
 document.addEventListener('pointerup',e=>{
@@ -817,7 +868,7 @@ function openReport(){
     const T={avail:0,cb:0,tb:0,cn:0,tn:0,lv:0,un:0,free:0};rows.forEach(r=>{for(const k in T)T[k]+=r[k]});
     const booked=T.cb+T.tb+T.cn+T.tn,bill=T.cb+T.tb,non=T.cn+T.tn,conf=T.cb+T.cn,ten=T.tb+T.tn;
     const card=(l,v,sub)=>`<div class="card"><span class="hint">${l}</span><b>${v}</b><span class="hint">${sub||'&nbsp;'}</span></div>`;
-    q('#rc').innerHTML=card('Available',f(T.avail)+'h',rows.length+' people')+card('Booked',f(booked)+'h',T.avail?Math.round(booked/T.avail*100)+'% of available':'')+card('Billable',f(bill)+'h',f(non)+'h non-billable')+card('Confirmed',f(conf)+'h',f(ten)+'h tentative')+card('Leave',f(T.lv)+'h','permanent staff')+card('Unavailable',f(T.un)+'h','contractors')+card('Free',f(T.free)+'h','');
+    q('#rc').innerHTML=card('Available',f(T.avail)+'h',rows.length+' people')+card('Booked',f(booked)+'h',T.avail?Math.round(booked/T.avail*100)+'% of available':'')+card('Billable',f(bill)+'h',f(non)+'h non-billable')+card('Confirmed',f(conf)+'h',f(ten)+'h tentative')+card('Leave',f(T.lv)+'h','permanent staff')+card('Unavailable',f(T.un)+'h','contractors')+card('Free',f(T.free)+'h','Permanent employees: '+f(rows.filter(r=>!r.con).reduce((n,r)=>n+r.free,0))+'h<br>Contractors: '+f(rows.filter(r=>r.con).reduce((n,r)=>n+r.free,0))+'h');
     const seg=(h,tot,bg)=>`<i style="width:${(h/tot*100).toFixed(1)}%;background:${bg}"></i>`;
     q('#rtab').innerHTML=`<table class="rt"><thead><tr><th>Name</th><th>Job title</th><th>Type</th><th>Available</th><th>Billable confirmed</th><th>Billable tentative</th><th>Non-billable confirmed</th><th>Non-billable tentative</th><th>Leave</th><th>Unavailable</th><th>Free</th><th>Booked %</th><th></th></tr></thead><tbody>${rows.map(r=>{
       const tot=Math.max(r.avail,r.booked+r.lv+r.un)||1;
@@ -906,10 +957,9 @@ function buildFloatOps(P,o){
   const ops=[],set=(coll,id,data)=>ops.push({op:'set',coll,id,data}),del2=(coll,id)=>ops.push({op:'delete',coll,id});
   const slug=t=>String(t).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,34);
   const h36=t=>{let h=2166136261;for(const ch of String(t)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(36)};
-  const st={newPeople:0,newClients:0,newProjects:0,bookings:0,leave:0,holidays:0,removed:0};
+  const st={newPeople:0,newClients:0,newProjects:0,bookings:0,leave:0,holidays:0,removed:0,skipped:0};
   let n=Date.now();
-  if(o.all){state.allocs.forEach(a=>{del2('allocs',a.id);st.removed++})}
-  else if(o.replace){state.allocs.filter(a=>String(a.id).startsWith('fa_')).forEach(a=>{del2('allocs',a.id);st.removed++})}
+
   const pid=new Map(state.people.map(p=>[p.name.trim().toLowerCase(),p.id]));
   for(const p of P.people){const k=p.name.toLowerCase();if(pid.has(k))continue;
     const id='fp_'+slug(p.name)+'_'+h36(p.name);
@@ -925,24 +975,33 @@ function buildFloatOps(P,o){
     const cI=client?clientId(client):'';
     const ex=state.projects.find(p=>(p.clientId||'')===cI&&p.name.trim().toLowerCase()===name.toLowerCase()&&!p.leave);
     let id;
-    if(ex){id=ex.id;if(!ex.start){const {id:_,hist:__,...rest}=ex;set('projects',id,{...rest,start:span.get(k).s,end:span.get(k).e})}}
+    if(ex){id=ex.id}
     else{id='fj_'+slug(client+' '+name)+'_'+h36(k);
       const d={name,clientId:cI,stage:'Active',billable:!!client&&client!==P.account,n:n++};
       if(cI){d.start=span.get(k).s;d.end=span.get(k).e}else d.color=PALETTE[(state.projects.length*7)%PALETTE.length];
       set('projects',id,d);st.newProjects++}
     prj.set(k,id);return id};
+  const normalize=t=>String(t||'').trim().replace(/\s+/g,' ').toLowerCase();
+  const identity=d=>JSON.stringify([d.person,d.proj,Number(d.hrs),normalize(d.comment)]);
+  const coverage=new Map();
+  for(const a of state.allocs){const d=eff(a);if(!d.start||!d.end)continue;const key=identity(d);if(!coverage.has(key))coverage.set(key,[]);coverage.get(key).push([d.start,d.end])}
+  const mergeBooking=d=>{const key=identity(d),covered=coverage.get(key)||[];let remaining=[[d.start,d.end]];
+    for(const [start,end]of covered){remaining=remaining.flatMap(([a,b])=>end<a||start>b?[[a,b]]:[...(a<start?[[a,addDays(start,-1)]]:[]),...(b>end?[[addDays(end,1),b]]:[])])}
+    if(!remaining.length){st.skipped++;return 0}let added=0;
+    for(const [start,end]of remaining){const data={...d,start,end};const token=key+'|'+start+'|'+end;set('allocs','fa_'+h36(token)+'_'+h36([...token].reverse().join('')),data);covered.push([start,end]);added++}coverage.set(key,covered);return added;
+  };
   for(const b of P.bookings){
     const pI=projectId(b.client,b.project),perId=pid.get(b.person.toLowerCase());
     const d={person:perId,proj:pI,hrs:b.hrs,start:b.start,end:b.end};
     if(b.client)d.own=true;
     if(b.comment)d.comment=b.comment;
-    set('allocs','fa_'+uid(),d);st.bookings++}
+    st.bookings+=mergeBooking(d)}
   if(o.leave&&P.leave.length){
     let lv=state.projects.find(p=>p.leave);
     if(!lv){lv={id:'lv'};set('projects','lv',{name:'Leave',leave:true,color:'#9aa1b5',n:n++})}
     for(const l of P.leave){
       const d={person:pid.get(l.person.toLowerCase()),proj:lv.id,hrs:l.hrs,start:l.start,end:l.end,comment:l.type+(l.comment?' - '+l.comment:'')};
-      set('allocs','fa_'+uid(),d);st.leave++}}
+      st.leave+=mergeBooking(d)}}
   if(o.hol){const have=new Set(state.holidays.map(h=>h.id));
     for(const h of P.holidays){if(!(h.sa||o.non)||have.has(h.iso))continue;have.add(h.iso);set('holidays',h.iso,{name:h.name});st.holidays++}}
   return{ops,st};
@@ -952,7 +1011,7 @@ function openImport(){
   closeModal();closePop();
   const o=document.createElement('div');o.className='ov-modal';document.body.appendChild(o);
   const ck=(id,on,txt)=>`<label class="ck" style="margin:6px 0"><input type="checkbox" id="${id}" ${on?'checked':''}> ${txt}</label>`;
-  o.innerHTML=`<div class="dlg" style="width:540px"><h3>Import from Float</h3><p class="hint">Choose the CSV you exported from Float. Nothing is saved until you click Import.</p><input type="file" id="ifile" accept=".csv,text/csv"><div id="isum" style="margin-top:12px;font-size:13px"></div><div id="iopt" hidden style="margin-top:8px">${ck('o-lv',1,'Import time off as Leave bookings')}${ck('o-hol',1,'Import South African public holidays')}${ck('o-non',0,'Also import non-South-African holidays')}${ck('o-rep',1,'Replace bookings from an earlier Float import')}${ck('o-all',0,'Delete ALL existing bookings first')}</div><p class="hint" id="imsg" role="status"></p><div class="r"><span class="sp"></span><button data-x>Close</button><button class="pri" id="igo" disabled>Import</button></div></div>`;
+  o.innerHTML=`<div class="dlg" style="width:540px"><h3>Import from Float</h3><p class="hint">Choose the CSV you exported from Float. Nothing is saved until you click Import.</p><input type="file" id="ifile" accept=".csv,text/csv"><div id="isum" style="margin-top:12px;font-size:13px"></div><div id="iopt" hidden style="margin-top:8px">${ck('o-lv',1,'Import time off as Leave bookings')}${ck('o-hol',1,'Import South African public holidays')}${ck('o-non',0,'Also import non-South-African holidays')}<p class="hint">Merge with existing data. Matching bookings are skipped; earlier years and manual bookings are kept.</p></div><p class="hint" id="imsg" role="status"></p><div class="r"><span class="sp"></span><button data-x>Close</button><button class="pri" id="igo" disabled>Import</button></div></div>`;
   const q=s=>o.querySelector(s),msg=t=>{q('#imsg').textContent=t};let P=null,armed=false;
   q('[data-x]').onclick=closeModal;
   q('#ifile').onchange=async e=>{
@@ -969,16 +1028,15 @@ function openImport(){
   q('#igo').onclick=async()=>{
     if(!P)return;
     if(!db||!db.batch){msg('The import needs the shared database.');return}
-    const opt={leave:q('#o-lv').checked,hol:q('#o-hol').checked,non:q('#o-non').checked,replace:q('#o-rep').checked,all:q('#o-all').checked};
-    if(opt.all&&!armed){armed=true;q('#igo').textContent='Click again to delete all bookings and import';return}
+    const opt={leave:q('#o-lv').checked,hol:q('#o-hol').checked,non:q('#o-non').checked};
     const {ops,st}=buildFloatOps(P,opt);
     ops.push({op:'set',coll:'log',id:'l'+uid(),data:{text:`imported from Float: ${st.newPeople} new people, ${st.newClients} new clients, ${st.newProjects} new projects, ${st.bookings} bookings, ${st.leave} time-off bookings, ${st.holidays} holidays`+(st.removed?`, removed ${st.removed} earlier bookings`:'')}});
     q('#igo').disabled=true;q('#ifile').disabled=true;
     try{
       await db.batch(ops,(d,t)=>msg(`Saving ${d} of ${t}...`));
-      msg(`Done. Added ${st.newPeople} people, ${st.newClients} clients, ${st.newProjects} projects, ${st.bookings} bookings, ${st.leave} time-off bookings and ${st.holidays} holidays.`+(st.removed?` Removed ${st.removed} earlier bookings.`:''));
+      msg(`Done. Added ${st.newPeople} people, ${st.newClients} clients, ${st.newProjects} projects, ${st.bookings} bookings, ${st.leave} time-off bookings and ${st.holidays} holidays. Skipped ${st.skipped} matching bookings.`);
       q('#igo').hidden=true;
-    }catch(err){msg('The import stopped part-way: '+err.message+'. You can run it again; Replace earlier import is on by default.');q('#igo').disabled=false;q('#ifile').disabled=false}
+    }catch(err){msg('The import stopped part-way: '+err.message+'. You can run the import again safely; matching bookings will be skipped.');q('#igo').disabled=false;q('#ifile').disabled=false}
   };
   o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
 }
@@ -992,9 +1050,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-trp]');if(
 /* ---------- project details pane, assignments, board filter ---------- */
 function addAssignment(pid,projId,dates){
   if(dates===null)return;
-  const pr=proj(projId);if(!pr||state.allocs.some(a=>a.person===pid&&a.proj===projId))return;
+  const pr=proj(projId);if(!pr)return;const selected=dates||(pr.start&&pr.end?{start:pr.start,end:pr.end}:null);if(!isEnvisioning(pr)&&state.allocs.some(a=>a.person===pid&&a.proj===projId&&(!selected||(eff(a).start===selected.start&&eff(a).end===selected.end))))return;
   if(isLinked(pr)&&!pr.start){const s=nextWork(lowerBound(todayISO),1);if(s>=0){pr.start=cols[s];pr.end=cols[addWork(s,5)];put('projects',pr)}}
-  const n={id:uid(),person:pid,proj:projId,hrs:4,...(dates?{start:dates.start,end:dates.end,own:true}: {})};state.allocs.push(n);put('allocs',n);
+  const n={id:uid(),person:pid,proj:projId,hrs:pr.leave?maxCap(state.people.find(p=>p.id===pid)||{cap:8}):4,...(dates?{start:dates.start,end:dates.end,own:true}: {})};state.allocs.push(n);put('allocs',n);
 }
 function fillPf(){
   const s=document.getElementById('pf');if(!s)return;
@@ -1120,7 +1178,7 @@ const API=async(path,body)=>{
   return j;
 };
 function makeDB(){
-  let rev=-1,store={},loaded=false,timer=null;const subs=[];
+  let rev=-1,store={},loaded=false,timer=null,pendingWrites=0,changeEpoch=0,pollSequence=0;let writeQueue=Promise.resolve();const subs=[];
   const docsOf=(coll,o)=>{
     let a=Object.entries(store[coll]||{}).map(([id,v])=>({id,data:()=>v}));
     if(o&&o.by)a.sort((x,y)=>{const p=x.data()[o.by],q=y.data()[o.by];return(o.dir==='desc'?-1:1)*(p>q?1:p<q?-1:0)});
@@ -1129,12 +1187,13 @@ function makeDB(){
   };
   const fire=()=>subs.forEach(s=>s.cb({docs:docsOf(s.coll,s.o)}));
   const poll=async()=>{
-    try{const j=await API('/api/data?rev='+rev);
+    const epoch=changeEpoch,sequence=++pollSequence;
+    try{const j=await API('/api/data?rev='+rev);if(pendingWrites||epoch!==changeEpoch||sequence!==pollSequence)return;
       if(j.online)showPresence(j.online);if(j.changed){store=j.data;rev=j.rev;loaded=true;fire()}else if(!loaded){loaded=true;fire()}}
     catch(e){subs.forEach(s=>s.err&&s.err(e))}
   };
   const soon=()=>{clearTimeout(timer);timer=setTimeout(poll,500)};
-  const write=async ops=>{try{await API('/api/data',{ops})}catch(e){rev=-1;poll();throw e}soon()};
+  const write=ops=>{pendingWrites++;changeEpoch++;const result=writeQueue.catch(()=>{}).then(()=>API('/api/data',{ops}));writeQueue=result;return result.catch(e=>{rev=-1;throw e}).finally(()=>{pendingWrites--;changeEpoch++;if(!pendingWrites)soon()})};
   const coll=(name,o={})=>({
     doc:id=>({
       set:obj=>{(store[name]=store[name]||{})[id]=obj;fire();return write([{op:'set',coll:name,id,data:obj}])},
@@ -1149,7 +1208,7 @@ function makeDB(){
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
   return{collection:n=>coll(n),
     refresh:()=>{rev=-1;poll()},
-    batch:async(ops,cb)=>{for(let i=0;i<ops.length;i+=25){await API('/api/data',{ops:ops.slice(i,i+25)});if(cb)cb(Math.min(ops.length,i+25),ops.length)}rev=-1;poll()}};
+    batch:async(ops,cb)=>{for(const op of ops)captureEdit(op.coll,op.id,op.op==='delete'?null:op.data);for(let i=0;i<ops.length;i+=25){const chunk=ops.slice(i,i+25);await write(chunk);for(const op of chunk){store[op.coll]??={};if(op.op==='delete')delete store[op.coll][op.id];else store[op.coll][op.id]=copyEdit(op.data)}fire();if(cb)cb(Math.min(ops.length,i+25),ops.length)}rev=-1;poll()}};
 }
 function startApp(){
   window.claude={use:async n=>n==='db'?makeDB():{id:async()=>session.id,me:async()=>({name:session.name,email:session.username}),isOwner:async()=>false,can:async()=>true}};
@@ -1188,29 +1247,29 @@ document.getElementById('team-filters').addEventListener('click',e=>{const butto
 function effectiveBookingStatus(booking){return proj(booking.proj)?.bookingStatus||booking.status||'confirmed'}
 function setProjectBookingStatus(projectId,status){const project=proj(projectId);if(!project||project.leave)return;project.bookingStatus=status;put('projects',project)}
 function colourRGB(value){const hex=value.trim().replace('#','');if(/^[0-9a-f]{6}$/i.test(hex))return [0,2,4].map(i=>parseInt(hex.slice(i,i+2),16));if(/^[0-9a-f]{3}$/i.test(hex))return [...hex].map(c=>parseInt(c+c,16));const rgb=value.match(/[\d.]+/g);return rgb&&rgb.length>=3?rgb.slice(0,3).map(Number):[92,99,112]}
-function barAppearance(project,booking){const colour=colourRGB(colorOf(project));const tentative=effectiveBookingStatus(booking)==='tentative';const panel=colourRGB(getComputedStyle(document.documentElement).getPropertyValue('--panel'));const background=tentative?colour.map((c,i)=>Math.round(c*.3+panel[i]*.7)):colour;const linear=background.map(c=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4});const luminance=.2126*linear[0]+.7152*linear[1]+.0722*linear[2];const ink=(1.05/(luminance+.05))>=((luminance+.05)/.05)?'#ffffff':'#000000';return '--bar-bg:rgb('+background.join(',')+');--bar-ink:'+ink}
+function barAppearance(project,booking){const colour=colourRGB(colorOf(project));const tentative=effectiveBookingStatus(booking)==='tentative';if(tentative)return '--bar-bg:transparent;--bar-ink:var(--ink)';const panel=colourRGB(getComputedStyle(document.documentElement).getPropertyValue('--panel'));const background=tentative?colour.map((c,i)=>Math.round(c*.3+panel[i]*.7)):colour;const linear=background.map(c=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4});const luminance=.2126*linear[0]+.7152*linear[1]+.0722*linear[2];const ink=(1.05/(luminance+.05))>=((luminance+.05)/.05)?'#ffffff':'#000000';return '--bar-bg:rgb('+background.join(',')+');--bar-ink:'+ink}
 function personTextMatch(id){const p=state.people.find(p=>p.id===id);return !!p&&(p.name+' '+(p.role||'')+' '+(p.skills||[]).join(' ')).toLowerCase().includes(filterQ)}
 function projectSearchMatch(id){const p=proj(id);return !!p&&(labelOf(p)+' '+(p.code||'')).toLowerCase().includes(filterQ)}
 function personProjectMatch(person){return state.allocs.some(a=>a.person===person.id&&projectSearchMatch(a.proj))}
 function bookingDates(pop,a){const start=pop.querySelector('#booking-start').value,end=pop.querySelector('#booking-end').value;if(!start||!end||end<start){pop.querySelector('#booking-end').setCustomValidity('Choose an end date on or after the start date.');pop.querySelector('#booking-end').reportValidity();return null}pop.querySelector('#booking-end').setCustomValidity('');return {start,end}}
 const FIXED_OWNERS=[{id:'named:talhah-jeewa',name:'Talhah Jeewa'},{id:'named:damon-king',name:'Damon King'},{id:'named:emil-hickley',name:'Emil Hickley'}];
 function ownerChoices(kind){
-  const role=p=>(p.role||'').trim().toLowerCase().replace(/\s+/g,' ');
-  const managers=state.people.filter(p=>/^delivery managers?$/.test(role(p)));
-  const leads=state.people.filter(p=>/^delivery leads?$/.test(role(p)));
+  const role=p=>String(p.role||'').normalize('NFKC').toLowerCase().replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/[-\u2010-\u2015_/]+/g,' ').replace(/\s+/g,' ').trim();
+  const managers=state.people.filter(p=>/\bdelivery managers?\b/.test(role(p)));
+  const leads=state.people.filter(p=>/\bdelivery leads?\b/.test(role(p)));
   const fixed=FIXED_OWNERS.map(owner=>state.people.find(p=>p.name.trim().toLowerCase()===owner.name.toLowerCase())||owner);
-  const options=kind==='sales'?fixed:kind==='client'?[...managers,...fixed]:[...managers,...leads];
+  const options=kind==='sales'?fixed:kind==='client'?[...managers,...leads,...fixed]:[...managers,...leads];
   return [...new Map(options.map(p=>[p.name.trim().toLowerCase(),p])).values()].sort((a,b)=>a.name.localeCompare(b.name));
 }
 function ownerOptions(current,kind){const options=ownerChoices(kind);return '<option value="">Unassigned</option>'+(current&&!options.some(p=>p.id===current)?`<option value="${esc(current)}" selected disabled hidden>${esc(ownerName(current))} (previous assignment)</option>`:'')+options.map(p=>`<option value="${esc(p.id)}" ${p.id===current?'selected':''}>${esc(p.name)}</option>`).join('')}
 function ownerSelect(id,current,kind='project'){return `<select id="${id}">${ownerOptions(current,kind)}</select>`}
-function ownerFields(item,project){return (project?'<label for="project-owner">Project Owner</label>'+ownerSelect('project-owner',item.ownerId):'<label for="client-owner">Client Owner (Delivery Manager)</label>'+ownerSelect('client-owner',item.clientOwnerId,'client')+'<label for="sales-owner">Sales Owner</label>'+ownerSelect('sales-owner',item.salesOwnerId,'sales'))+ownershipHistory(item)}
+function ownerFields(item,project){return (project?'<label for="project-owner">Project Owner</label>'+ownerSelect('project-owner',item.ownerId):'<label for="client-owner">Client Owner</label>'+ownerSelect('client-owner',item.clientOwnerId,'client')+'<label for="sales-owner">Sales Owner</label>'+ownerSelect('sales-owner',item.salesOwnerId,'sales'))+ownershipHistory(item)}
 function ownerName(id){return state.people.find(p=>p.id===id)?.name||FIXED_OWNERS.find(p=>p.id===id)?.name||id||'Unassigned'}
 function ownershipHistory(item){const entries=item.ownershipHistory||[];return '<details class="ownership-log"><summary>Ownership history ('+entries.length+')</summary>'+entries.slice().reverse().map(h=>`<p>${esc(h.label)}: ${esc(h.fromName||ownerName(h.from))} → ${esc(h.toName||ownerName(h.to))}<br>${esc(h.by||'Unknown')} · ${new Date(h.at).toLocaleString('en-GB')}</p>`).join('')+'</details>'}
 function recordOwnership(kind,obj){if(kind!=='clients'&&kind!=='projects')return;let prev={};try{prev=JSON.parse(shadow[kind+'/'+obj.id]||'{}')}catch(e){}const fields=kind==='clients'?[['clientOwnerId','Client Owner'],['salesOwnerId','Sales Owner']]:[['ownerId','Project Owner']];const changes=fields.filter(([f])=>(prev[f]||'')!==(obj[f]||''));if(changes.length){obj.ownershipHistory=[...(prev.ownershipHistory||obj.ownershipHistory||[]),...changes.map(([field,label])=>({field,label,from:prev[field]||'',to:obj[field]||'',fromName:ownerName(prev[field]),toName:ownerName(obj[field]),at:Date.now(),by:me?.name||'Unknown'}))];}}
 function renderSidebar(){
   const chip=p=>`<div class="chip ${p.leave?'leave':''} ${['inactive','archived'].includes(p.status)?'inactive':''}" data-proj="${esc(p.id)}" title="${esc(p.status||'active')}"><i style="background:${p.leave?'':colorOf(p)}"></i><span class="cn">${esc(p.name)}</span><button class="ed" data-eproj="${esc(p.id)}" aria-label="Edit ${esc(p.name)}">✎</button></div>`;
-  const clientBlock=(c,projects,alias=false,section='')=>`<div class="cg ${['inactive','archived'].includes(c.status)?'inactive':''}" id="${alias?'linked-'+section+'-':'client-'}${esc(c.id)}"><div class="ch"><button class="tg" data-tg="${esc(c.id)}" aria-expanded="${!collapsed[c.id]}" aria-label="Toggle ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><b>${esc(c.name)}</b><button data-eclient="${esc(c.id)}">Edit</button></div>${alias&&(c.status||'active')==='active'?`<button class="ed client-link" data-client-link="${esc(c.id)}">View active client ↗</button>`:''}${collapsed[c.id]?'':projects.map(chip).join('')}${!alias&&!collapsed[c.id]?`<div class="add"><input data-np="${esc(c.id)}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${esc(c.id)}">Add</button></div>`:''}</div>`;
+  const clientBlock=(c,projects,alias=false,section='')=>`<div class="cg ${['inactive','archived'].includes(c.status)?'inactive':''}" id="${alias?'linked-'+section+'-':'client-'}${esc(c.id)}"><div class="ch"><button class="tg" data-tg="${esc(c.id)}" aria-expanded="${!collapsed[c.id]}" aria-label="Toggle ${esc(c.name)}">${collapsed[c.id]?'▸':'▾'}</button><i style="background:${c.color}"></i><button class="client-name" data-eclient="${esc(c.id)}" style="flex:1;text-align:left;font-weight:600;border:0;background:none;padding:0">${esc(c.name)}</button><button data-eclient="${esc(c.id)}">Edit</button></div>${alias&&(c.status||'active')==='active'?`<button class="ed client-link" data-client-link="${esc(c.id)}">View active client ↗</button>`:''}${collapsed[c.id]?'':projects.map(chip).join('')}${!alias&&!collapsed[c.id]?`<div class="add"><input data-np="${esc(c.id)}" placeholder="New project" aria-label="New project for ${esc(c.name)}"><button data-addp="${esc(c.id)}">Add</button></div>`:''}</div>`;
   const active=sortedClients().filter(c=>!['inactive','archived'].includes(c.status));
   const owners=new Map();active.forEach(c=>{const id=c.clientOwnerId||'';if(!owners.has(id))owners.set(id,[]);owners.get(id).push(c)});
   let html=[...owners].sort((a,b)=>!a[0]?1:!b[0]?-1:ownerName(a[0]).localeCompare(ownerName(b[0]))).map(([id,clients])=>`<details class="owner-group" data-section="owner-${esc(id)}" ${sectionOpen('owner-'+id)}><summary>${esc(id?ownerName(id):'Unassigned clients')}</summary>${clients.map(c=>clientBlock(c,state.projects.filter(p=>p.clientId===c.id))).join('')}</details>`).join('');
@@ -1235,7 +1294,7 @@ function newSlotProject(pid,start,end,name){
 }
 const holidayCache={};
 function saHolidays(start=range.start,weeks=range.weeks){const result={};const from=Math.max(1995,parse(start).getFullYear()-1),to=Math.min(2100,parse(addDays(start,weeks*7)).getFullYear()+1);for(let year=from;year<=to;year++){if(!holidayCache[year]){const days={};const add=(date,name)=>{days[date]=days[date]?days[date]+' / '+name:name};for(const [md,name] of [['01-01',"New Year's Day"],['03-21','Human Rights Day'],['04-27','Freedom Day'],['05-01',"Workers' Day"],['06-16','Youth Day'],['08-09',"National Women's Day"],['09-24','Heritage Day'],['12-16','Day of Reconciliation'],['12-25','Christmas Day'],['12-26','Day of Goodwill']]){const date=year+'-'+md;add(date,name);if(parse(date).getDay()===0)add(addDays(date,1),name+' (observed)')}const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=(h+l-7*m+114)%31+1,easter=fmt(new Date(year,month-1,day));add(addDays(easter,-2),'Good Friday');add(addDays(easter,1),'Family Day');holidayCache[year]=days}Object.assign(result,holidayCache[year])}if(from<=2026&&to>=2026)result['2026-11-04']='Local Government Election Day';return result}
-function visibleWeek(){const index=Math.max(0,Math.min(cols.length-1,Math.floor((document.getElementById('scroller')?.scrollLeft||0)/DW)));return fmt(mondayOf(parse(cols[index]||todayISO)))}
+function visibleWeek(){const index=Math.max(0,Math.min(cols.length-1,colAt(document.getElementById('scroller')?.scrollLeft||0)));return fmt(mondayOf(parse(cols[index]||todayISO)))}
 function weeklyTotals(person,start){let work=0,leave=0,capacity=0;const holidays={...saHolidays(start,1)};state.holidays.forEach(h=>holidays[h.id]=h.name||'Public holiday');for(let day=0;day<7;day++){const date=addDays(start,day),daily=holidays[date]?0:Number(daysOf(person)[parse(date).getDay()])||0;if(daily<=0)continue;capacity+=daily;for(const a of state.allocs.filter(a=>a.person===person.id)){const dates=eff(a);if(dates.start<=date&&dates.end>=date){if(proj(a.proj)?.leave)leave+=Number(a.hrs)||0;else work+=Number(a.hrs)||0}}}return {work,leave,capacity}}
 function weeklyFlag(person,start){
   const displayed=weeklyTotals(person,start),current=weeklyTotals(person,fmt(mondayOf(new Date())));
@@ -1244,7 +1303,7 @@ function weeklyFlag(person,start){
   return (over?'<span class="util-flag" title="Bookings exceed available hours for the displayed week">&#9873; Overbooked</span>':'')+(available?'<span class="util-flag under" title="28 hours or less booked, including leave, in the current workweek">&#10003; Has capacity</span>':'');
 }
 let zoomWidth=Number(ls.get('zoom-width',40))||40;DW=Math.max(16,Math.min(80,zoomWidth));
-function applyZoom(next){const scroller=document.getElementById('scroller'),day=scroller.scrollLeft/DW;DW=Math.max(16,Math.min(80,next));ls.set('zoom-width',DW);document.body.classList.toggle('zoomed-out',DW<40);document.getElementById('zoom-label').textContent=Math.round(DW/40*100)+'%';render();scroller.scrollLeft=day*DW}
+function applyZoom(next){const scroller=document.getElementById('scroller'),day=colAt(scroller.scrollLeft),fraction=(scroller.scrollLeft-colX(day))/colWidth(day);DW=Math.max(16,Math.min(80,next));ls.set('zoom-width',DW);document.body.classList.toggle('zoomed-out',DW<40);document.getElementById('zoom-label').textContent=Math.round(DW/40*100)+'%';render();scroller.scrollLeft=colX(day)+fraction*colWidth(day)}
 document.getElementById('zoom-in').onclick=()=>applyZoom(DW+8);document.getElementById('zoom-out').onclick=()=>applyZoom(DW-8);
 document.body.classList.toggle('zoomed-out',DW<40);document.getElementById('zoom-label').textContent=Math.round(DW/40*100)+'%';
 let lastFlagWeek='';document.getElementById('scroller').addEventListener('scroll',()=>{const week=visibleWeek();if(week!==lastFlagWeek&&!drag){lastFlagWeek=week;render()}});
