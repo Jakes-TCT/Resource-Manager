@@ -1,7 +1,7 @@
 const c = require('../lib/core');
 const { sql } = c;
 const ID = /^[A-Za-z0-9_.-]{1,64}$/;
-const ROLES = ['admin', 'manager', 'contributor'];
+const ROLES = ['admin', 'manager', 'contributor', 'viewer'];
 
 async function snapshot(u, ok) {
   const out = {};
@@ -78,7 +78,7 @@ module.exports = async (req, res) => {
     await c.ensure();
     const u = await c.sessionUser(req);
     if (!u) throw c.http(401, 'Not signed in');
-    const ok = u.status === 'approved' && !!u.role;
+    const ok = u.status === 'approved' && ROLES.includes(u.role);
     if (req.method === 'GET') {
       const rev = await c.getRev();
       const online = await c.presence(u, ok);
@@ -88,6 +88,7 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       if (!c.sameType(req)) throw c.http(415, 'JSON only');
       if (!ok) throw c.http(403, 'Your account has not been approved yet');
+      if (u.role === 'viewer') throw c.http(403, 'View Only access cannot make changes');
       const ops = (req.body || {}).ops;
       if (!Array.isArray(ops) || !ops.length || ops.length > 50) throw c.http(400, 'Bad request');
       await apply(u, ops);

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="resource-manager-build" content="2026.11.06-r1">
+<meta name="resource-manager-build" content="2026.11.06-r3">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Capacity Planner</title>
 <link rel="icon" type="image/png" href="./rmicon.png?v=1">
@@ -183,6 +183,8 @@ aside .team-heading button{font-size:inherit;font-weight:inherit}
 .brand{margin:0;display:flex;align-items:center}.brand-logo{display:block;width:120px;height:38px;object-fit:contain;filter:brightness(0)}
 :root[data-theme="dark"] .brand-logo{filter:brightness(0) invert(1)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand-logo{filter:brightness(0) invert(1)}}
+.rainbow-editor{border:2px solid transparent!important;background:linear-gradient(var(--panel),var(--panel)) padding-box,conic-gradient(from 35deg,#ff6488,#ffb44c,#eddf64,#63d6a0,#58c8f5,#9581ff,#e77bdf,#ff6488) border-box!important;box-shadow:0 10px 30px rgba(0,0,0,.22),-5px -3px 16px rgba(255,100,136,.23),5px -3px 16px rgba(255,180,76,.23),5px 5px 16px rgba(88,200,245,.25),-5px 5px 16px rgba(149,129,255,.25)!important}
+body[data-role=viewer] .add,body[data-role=viewer] .ed,body[data-role=viewer] .rh,body[data-role=viewer] .rz,body[data-role=viewer] .rv,body[data-role=viewer] [data-eclient]:not(.client-name),body[data-role=viewer] #imp,body[data-role=viewer] #usr{display:none!important}body[data-role=viewer] .al,body[data-role=viewer] .chip,body[data-role=viewer] .who,body[data-role=viewer] .client-name{cursor:default!important}
 </style>
 <script>
 try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}
@@ -190,7 +192,7 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
 </head>
 <body>
 <header>
-  <details id="settings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m10 2-.5 2.5-2 .8-2.1-1.4L2.9 6.4l1.4 2.1-.8 2L1 11v3l2.5.5.8 2-1.4 2.1 2.5 2.5 2.1-1.4 2 .8.5 2.5h3l.5-2.5 2-.8 2.1 1.4 2.5-2.5-1.4-2.1.8-2L23 14v-3l-2.5-.5-.8-2 1.4-2.1-2.5-2.5-2.1 1.4-2-.8L14 2z"/><circle cx="12" cy="12.5" r="3.5"/></svg></summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button><span id="build-version" class="hint" style="padding:5px">Build 2026.11.06-r1</span></nav></details>
+  <details id="settings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m10 2-.5 2.5-2 .8-2.1-1.4L2.9 6.4l1.4 2.1-.8 2L1 11v3l2.5.5.8 2-1.4 2.1 2.5 2.5 2.1-1.4 2 .8.5 2.5h3l.5-2.5 2-.8 2.1 1.4 2.5-2.5-1.4-2.1.8-2L23 14v-3l-2.5-.5-.8-2 1.4-2.1-2.5-2.5-2.1 1.4-2-.8L14 2z"/><circle cx="12" cy="12.5" r="3.5"/></svg></summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button><span id="build-version" class="hint" style="padding:5px">Build 2026.11.06-r3</span></nav></details>
   <h1 class="brand"><img class="brand-logo" src="/flux-logo.png" alt="Flux"></h1>
   <button id="pane" class="icon-button" aria-label="Hide projects" title="Hide projects" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><button id="today">Today</button><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label" class="hint">100%</span><button id="zoom-in" aria-label="Zoom in">+</button><button id="undo" disabled title="Undo last change" aria-label="Undo">&#8630;</button><button id="redo" disabled title="Redo last change" aria-label="Redo">&#8631;</button>
   <span class="sp"></span>
@@ -253,7 +255,7 @@ let clientSort=ls.get('client-sort','custom'),teamCollapsed=ls.get('team-collaps
 const sortedClients=()=>{const list=[...state.clients];if(clientSort==='name'||clientSort==='name-desc')list.sort((a,b)=>(clientSort==='name-desc'?-1:1)*a.name.localeCompare(b.name,undefined,{sensitivity:'base',numeric:true}));return list};
 let myRole=null,myId=null,me=null,isOwnerFlag=false,usersReady=false,bootWrote=false,usersDraw=null;
 const BOOT=[];
-const rank={contributor:1,manager:2,admin:3};
+const rank={viewer:0,contributor:1,manager:2,admin:3};
 let pf='';
 const STG={active:'Active',hired:'Hired, starting soon',offer:'Offer made',interview:'Interviewing',screening:'Screening',sourcing:'Sourcing',inactive:'Inactive',archived:'Archived'};
 const atLeast=r=>(rank[myRole]||0)>=rank[r];
@@ -264,8 +266,8 @@ function loadLocal(){try{const s=localStorage.getItem(KEY);return s?JSON.parse(s
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
 function setStatus(t){const s=document.getElementById('status');if(s)s.textContent=t}
 function fail(e){setStatus('Save failed: '+((e&&(e.message||e.code))||'unknown error'))}
-function put(kind,obj){recordOwnership(kind,obj);captureEdit(kind,obj.id,obj);if(!db){shadow[kind+'/'+obj.id]=JSON.stringify(historyValue(obj));saveLocal();return}const r={...obj};delete r.id;db.collection(kind).doc(obj.id).set(r).catch(fail);logChange(kind,obj.id,r)}
-function del(kind,id){captureEdit(kind,id,null);if(!db){delete shadow[kind+'/'+id];saveLocal();return}db.collection(kind).doc(id).delete().catch(fail);logChange(kind,id,null)}
+function put(kind,obj){if(myRole==='viewer')return;recordOwnership(kind,obj);captureEdit(kind,obj.id,obj);if(!db){shadow[kind+'/'+obj.id]=JSON.stringify(historyValue(obj));saveLocal();return}const r={...obj};delete r.id;db.collection(kind).doc(obj.id).set(r).catch(fail);logChange(kind,obj.id,r)}
+function del(kind,id){if(myRole==='viewer')return;captureEdit(kind,id,null);if(!db){delete shadow[kind+'/'+id];saveLocal();return}db.collection(kind).doc(id).delete().catch(fail);logChange(kind,id,null)}
 function sortAll(){state.clients.sort((a,b)=>(a.n||0)-(b.n||0));state.projects.sort((a,b)=>(a.leave?1:0)-(b.leave?1:0)||(a.n||0)-(b.n||0));state.people.sort((a,b)=>(a.n||0)-(b.n||0)||a.name.localeCompare(b.name))}
 function refresh(){if(drag){dirty=true;return}render()}
 async function connect(){
@@ -425,7 +427,7 @@ function target(e){
   return{col,track:tr};
 }
 document.addEventListener('pointerdown',e=>{
-  if(e.button>0||readOnly||!myRole||e.target.closest('button,input,select,textarea'))return;
+  if(e.button>0||readOnly||!atLeast('contributor')||e.target.closest('button,input,select,textarea'))return;
   const chip=e.target.closest('.chip'),bar=e.target.closest('.al');
   if(chip){drag={ro:!atLeast('manager'),type:'new',proj:chip.dataset.proj,len:5,x:e.clientX,y:e.clientY,moved:false};}
   else if(bar){
@@ -478,7 +480,7 @@ document.addEventListener('pointercancel',cancelBookingDrag);window.addEventList
 
 /* ---------- editor popover ---------- */
 function closePop(){document.querySelector('.pop')?.remove()}
-function openPop(id,e){
+function openPop(id,e){if(myRole==='viewer')return;
   closePop();
   const a=state.allocs.find(x=>x.id===id);if(!a)return;
   const p=document.createElement('div');p.className='pop';
@@ -535,10 +537,11 @@ sc.addEventListener('scroll',()=>{
 });
 /* ---------- modals: team, clients, projects ---------- */
 function closeModal(){document.querySelector('.ov-modal')?.remove()}
-function modal(title,body,onSave,onDelete,delLabel,init){
+function modal(title,body,onSave,onDelete,delLabel,init){if(myRole==='viewer')return;
   closeModal();closePop();
   const o=document.createElement('div');o.className='ov-modal';
   o.innerHTML=`<div class="dlg" role="dialog" aria-label="${esc(title)}"><h3>${esc(title)}</h3>${body}<div class="r">${onDelete&&atLeast('admin')?'<button class="danger" data-d>'+esc(delLabel||'Delete')+'</button>':''}<span class="sp"></span><button data-x>Cancel</button><button data-s class="pri">Save</button></div></div>`;
+  if(['Edit team member','Edit project'].includes(title))o.querySelector('.dlg').classList.add('rainbow-editor');
   document.body.appendChild(o);
   o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
   o.querySelector('[data-x]').onclick=closeModal;
@@ -1093,7 +1096,7 @@ function fillPf(){
   s.value=pf;if(s.value!==pf){pf='';s.value=''}
 }
 const PSTAGES=['Proposal','Planning','Active','On hold','Complete'];
-function openDetails(id){let pane=document.getElementById('dpane');if(!pane){pane=document.createElement('div');pane.id='dpane';pane.className='dpane';document.body.appendChild(pane)}pane.dataset.id=id;drawDetails()}
+function openDetails(id){if(myRole==='viewer')return;let pane=document.getElementById('dpane');if(!pane){pane=document.createElement('div');pane.id='dpane';pane.className='dpane rainbow-editor';document.body.appendChild(pane)}pane.dataset.id=id;drawDetails()}
 function drawDetails(){
   const pane=document.getElementById('dpane');if(!pane)return;
   const pr=proj(pane.dataset.id);if(!pr){pane.remove();return}
@@ -1136,6 +1139,7 @@ function evalAccess(){
   if(boot){myRole='admin';if((!rec||rec.status!=='approved'||rec.role!=='admin')&&!bootWrote){bootWrote=true;saveUser({id:myId,name:(rec&&rec.name)||(me&&me.name)||'',jobTitle:(rec&&rec.jobTitle)||'',email:((me&&me.email)||'').toLowerCase(),status:'approved',role:'admin',n:(rec&&rec.n)||Date.now()})}}
   else myRole=rec&&rec.status==='approved'?rec.role:null;
   document.body.dataset.role=myRole||'';
+  if(myRole==='viewer'){closeModal();closePop();document.getElementById('dpane')?.remove();cancelBookingDrag();stopSplitBooking();setDeleteBookingMode(false)}
   const pend=state.users.filter(u=>u.status==='pending').length,ub=document.getElementById('usr');
   ub.hidden=myRole!=='admin';document.getElementById('act').hidden=myRole!=='admin';document.getElementById('imp').hidden=myRole!=='admin';ub.textContent='Users'+(pend?' ('+pend+')':'');
   setStatus((readOnly?'Shared · read only':'Shared · live')+(myRole?' · '+((me&&me.name)?me.name+' · ':'')+myRole:''));
@@ -1157,7 +1161,7 @@ function openUsers(){
   if(myRole!=='admin')return;
   closeModal();closePop();
   const o=document.createElement('div');o.className='ov-modal';document.body.appendChild(o);
-  const opts=sel=>['contributor','manager','admin'].map(r=>`<option value="${r}" ${r===sel?'selected':''}>${r[0].toUpperCase()+r.slice(1)}</option>`).join('');
+  const opts=sel=>['viewer','contributor','manager','admin'].map(r=>`<option value="${r}" ${r===sel?'selected':''}>${r==='viewer'?'View Only':r[0].toUpperCase()+r.slice(1)}</option>`).join('');
   const info=u=>`<div><b>${esc(u.name||'?')}${u.id===myId?' (you)':''}</b><br><span class="hint">${esc(u.jobTitle||'No job title')} · ${esc(u.email||'')}</span></div>`;
   const admins=()=>state.users.filter(u=>u.status==='approved'&&u.role==='admin').length;
   const draw=()=>{
@@ -1225,11 +1229,11 @@ function makeDB(){
     catch(e){subs.forEach(s=>s.err&&s.err(e))}
   };
   const soon=()=>{clearTimeout(timer);timer=setTimeout(poll,500)};
-  const write=ops=>{pendingWrites++;changeEpoch++;const result=writeQueue.catch(()=>{}).then(()=>API('/api/data',{ops}));writeQueue=result;return result.catch(e=>{rev=-1;throw e}).finally(()=>{pendingWrites--;changeEpoch++;if(!pendingWrites)soon()})};
+  const write=ops=>{if(myRole==='viewer')return Promise.reject(new Error('View Only access cannot make changes'));pendingWrites++;changeEpoch++;const result=writeQueue.catch(()=>{}).then(()=>API('/api/data',{ops}));writeQueue=result;return result.catch(e=>{rev=-1;throw e}).finally(()=>{pendingWrites--;changeEpoch++;if(!pendingWrites)soon()})};
   const coll=(name,o={})=>({
     doc:id=>({
-      set:obj=>{(store[name]=store[name]||{})[id]=obj;fire();return write([{op:'set',coll:name,id,data:obj}])},
-      delete:()=>{if(store[name])delete store[name][id];fire();return write([{op:'delete',coll:name,id}])}
+      set:obj=>{if(myRole==='viewer')return Promise.reject(new Error('View Only access cannot make changes'));(store[name]=store[name]||{})[id]=obj;fire();return write([{op:'set',coll:name,id,data:obj}])},
+      delete:()=>{if(myRole==='viewer')return Promise.reject(new Error('View Only access cannot make changes'));if(store[name])delete store[name][id];fire();return write([{op:'delete',coll:name,id}])}
     }),
     onSnapshot:(cb,err)=>{subs.push({coll:name,o,cb,err});if(loaded)cb({docs:docsOf(name,o)});return()=>{}},
     orderBy:(by,dir)=>coll(name,{...o,by,dir}),
@@ -1240,7 +1244,7 @@ function makeDB(){
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
   return{collection:n=>coll(n),
     refresh:()=>{rev=-1;poll()},
-    batch:async(ops,cb)=>{for(const op of ops)captureEdit(op.coll,op.id,op.op==='delete'?null:op.data);for(let i=0;i<ops.length;i+=25){const chunk=ops.slice(i,i+25);await write(chunk);for(const op of chunk){store[op.coll]??={};if(op.op==='delete')delete store[op.coll][op.id];else store[op.coll][op.id]=copyEdit(op.data)}fire();if(cb)cb(Math.min(ops.length,i+25),ops.length)}rev=-1;poll()}};
+    batch:async(ops,cb)=>{if(myRole==='viewer')throw new Error('View Only access cannot make changes');for(const op of ops)captureEdit(op.coll,op.id,op.op==='delete'?null:op.data);for(let i=0;i<ops.length;i+=25){const chunk=ops.slice(i,i+25);await write(chunk);for(const op of chunk){store[op.coll]??={};if(op.op==='delete')delete store[op.coll][op.id];else store[op.coll][op.id]=copyEdit(op.data)}fire();if(cb)cb(Math.min(ops.length,i+25),ops.length)}rev=-1;poll()}};
 }
 function startApp(){
   window.claude={use:async n=>n==='db'?makeDB():{id:async()=>session.id,me:async()=>({name:session.name,email:session.username}),isOwner:async()=>false,can:async()=>true}};
