@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="resource-manager-build" content="2026.11.06-r3">
+<meta name="resource-manager-build" content="2026.11.06-r4">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Capacity Planner</title>
 <link rel="icon" type="image/png" href="./rmicon.png?v=1">
@@ -192,7 +192,7 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
 </head>
 <body>
 <header>
-  <details id="settings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m10 2-.5 2.5-2 .8-2.1-1.4L2.9 6.4l1.4 2.1-.8 2L1 11v3l2.5.5.8 2-1.4 2.1 2.5 2.5 2.1-1.4 2 .8.5 2.5h3l.5-2.5 2-.8 2.1 1.4 2.5-2.5-1.4-2.1.8-2L23 14v-3l-2.5-.5-.8-2 1.4-2.1-2.5-2.5-2.1 1.4-2-.8L14 2z"/><circle cx="12" cy="12.5" r="3.5"/></svg></summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button><span id="build-version" class="hint" style="padding:5px">Build 2026.11.06-r3</span></nav></details>
+  <details id="settings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m10 2-.5 2.5-2 .8-2.1-1.4L2.9 6.4l1.4 2.1-.8 2L1 11v3l2.5.5.8 2-1.4 2.1 2.5 2.5 2.1-1.4 2 .8.5 2.5h3l.5-2.5 2-.8 2.1 1.4 2.5-2.5-1.4-2.1.8-2L23 14v-3l-2.5-.5-.8-2 1.4-2.1-2.5-2.5-2.1 1.4-2-.8L14 2z"/><circle cx="12" cy="12.5" r="3.5"/></svg></summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button><span id="build-version" class="hint" style="padding:5px">Build 2026.11.06-r4</span></nav></details>
   <h1 class="brand"><img class="brand-logo" src="/flux-logo.png" alt="Flux"></h1>
   <button id="pane" class="icon-button" aria-label="Hide projects" title="Hide projects" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><button id="today">Today</button><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label" class="hint">100%</span><button id="zoom-in" aria-label="Zoom in">+</button><button id="undo" disabled title="Undo last change" aria-label="Undo">&#8630;</button><button id="redo" disabled title="Redo last change" aria-label="Redo">&#8631;</button>
   <span class="sp"></span>
@@ -253,6 +253,7 @@ const ls={get(k,d){try{const v=localStorage.getItem('planner-'+k);return v==null
 let sortBy=ls.get('sort','custom'),collapsed=ls.get('collapsed',{}),paneHidden=ls.get('pane',false),skillSel=new Set();
 let clientSort=ls.get('client-sort','custom'),teamCollapsed=ls.get('team-collapsed',false);
 const sortedClients=()=>{const list=[...state.clients];if(clientSort==='name'||clientSort==='name-desc')list.sort((a,b)=>(clientSort==='name-desc'?-1:1)*a.name.localeCompare(b.name,undefined,{sensitivity:'base',numeric:true}));return list};
+let resetRequests=[];
 let myRole=null,myId=null,me=null,isOwnerFlag=false,usersReady=false,bootWrote=false,usersDraw=null;
 const BOOT=[];
 const rank={viewer:0,contributor:1,manager:2,admin:3};
@@ -279,6 +280,7 @@ async function connect(){
     db=c;
     try{if(u){myId=await u.id();me=await u.me();isOwnerFlag=await u.isOwner()}}catch(e){}
     db.collection('users').onSnapshot(s=>{s.docs.forEach(d=>shadow['users/'+d.id]=JSON.stringify(d.data()));state.users=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.n||0)-(b.n||0));usersReady=true;evalAccess();renderGate();if(usersDraw)usersDraw()},fail);
+    db.collection('passwordResets').onSnapshot(s=>{resetRequests=s.docs.map(d=>({id:d.id,...d.data()}));evalAccess();if(usersDraw)usersDraw()},fail);
     setStatus('Shared · live');
     ['clients','holidays','projects','people','allocs'].forEach(k=>db.collection(k).onSnapshot(s=>{state[k]=s.docs.map(d=>({id:d.id,...d.data()}));s.docs.forEach(d=>shadow[k+'/'+d.id]=JSON.stringify(d.data()));synced=true;refresh()},fail));
   }catch(e){state=Object.assign({clients:[],holidays:[]},loadLocal()||seed());setStatus('Local only (this browser)');myRole='admin';document.body.dataset.role='admin';render()}
@@ -1140,7 +1142,7 @@ function evalAccess(){
   else myRole=rec&&rec.status==='approved'?rec.role:null;
   document.body.dataset.role=myRole||'';
   if(myRole==='viewer'){closeModal();closePop();document.getElementById('dpane')?.remove();cancelBookingDrag();stopSplitBooking();setDeleteBookingMode(false)}
-  const pend=state.users.filter(u=>u.status==='pending').length,ub=document.getElementById('usr');
+  const pend=state.users.filter(u=>u.status==='pending').length+resetRequests.length,ub=document.getElementById('usr');
   ub.hidden=myRole!=='admin';document.getElementById('act').hidden=myRole!=='admin';document.getElementById('imp').hidden=myRole!=='admin';ub.textContent='Users'+(pend?' ('+pend+')':'');
   setStatus((readOnly?'Shared · read only':'Shared · live')+(myRole?' · '+((me&&me.name)?me.name+' · ':'')+myRole:''));
   render();
@@ -1162,17 +1164,20 @@ function openUsers(){
   closeModal();closePop();
   const o=document.createElement('div');o.className='ov-modal';document.body.appendChild(o);
   const opts=sel=>['viewer','contributor','manager','admin'].map(r=>`<option value="${r}" ${r===sel?'selected':''}>${r==='viewer'?'View Only':r[0].toUpperCase()+r.slice(1)}</option>`).join('');
-  const info=u=>`<div><b>${esc(u.name||'?')}${u.id===myId?' (you)':''}</b><br><span class="hint">${esc(u.jobTitle||'No job title')} · ${esc(u.email||'')}</span></div>`;
+  const info=u=>`<div><b>${esc(u.name||'?')}${u.id===myId?' (you)':''}</b><br><span class="hint">${esc(u.jobTitle||'No job title')} · ${esc(u.email||'')}</span>${u.id!==myId?`<br><button class="danger" data-delete-user="${esc(u.id)}">Remove user</button>`:''}</div>`;
   const admins=()=>state.users.filter(u=>u.status==='approved'&&u.role==='admin').length;
   const draw=()=>{
     const pend=state.users.filter(u=>u.status==='pending'),acc=state.users.filter(u=>u.status==='approved'),dec=state.users.filter(u=>u.status==='declined');
-    o.innerHTML=`<div class="dlg" style="width:620px"><h3>Users and roles</h3><label>Waiting for approval</label>${pend.length?pend.map(u=>`<div class="ur">${info(u)}<select data-ar="${u.id}" aria-label="Role">${opts('contributor')}</select><label class="ck"><input type="checkbox" data-at="${u.id}" checked> Add to team chart</label><button class="pri" data-ap="${u.id}">Approve</button><button data-dc="${u.id}">Decline</button></div>`).join(''):'<p class="hint">No requests waiting.</p>'}<label>People with access</label>${acc.map(u=>`<div class="ur">${info(u)}<select data-rr="${u.id}" aria-label="Role">${opts(u.role)}</select><button class="danger" data-rv="${u.id}">Remove access</button></div>`).join('')||'<p class="hint">Nobody yet.</p>'}${dec.length?`<label>Declined</label>${dec.map(u=>`<div class="ur">${info(u)}<button data-ap="${u.id}">Approve as contributor</button></div>`).join('')}`:''}<div class="r"><span class="sp"></span><button data-x>Close</button></div></div>`;
+    o.innerHTML=`<div class="dlg" style="width:620px"><h3>Users and roles</h3><label>Password reset requests (${resetRequests.length})</label>${resetRequests.length?'<p class="hint">Confirm the request with the user before approving. Approval lets the requesting browser set a new password for 15 minutes.</p>'+resetRequests.map(r=>`<div class="ur"><div><b>${esc(r.name||r.username)}</b><br><span class="hint">${esc(r.username)} · ${new Date(r.created).toLocaleString('en-GB')}</span></div><button data-reset-approve="${esc(r.id)}">Approve reset</button><button data-reset-decline="${esc(r.id)}">Decline</button></div>`).join(''):'<p class="hint">No password reset requests.</p>'}<label>Waiting for approval</label>${pend.length?pend.map(u=>`<div class="ur">${info(u)}<select data-ar="${u.id}" aria-label="Role">${opts('contributor')}</select><label class="ck"><input type="checkbox" data-at="${u.id}" checked> Add to team chart</label><button class="pri" data-ap="${u.id}">Approve</button><button data-dc="${u.id}">Decline</button></div>`).join(''):'<p class="hint">No requests waiting.</p>'}<label>People with access</label>${acc.map(u=>`<div class="ur">${info(u)}<select data-rr="${u.id}" aria-label="Role">${opts(u.role)}</select><button class="danger" data-rv="${u.id}">Remove access</button></div>`).join('')||'<p class="hint">Nobody yet.</p>'}${dec.length?`<label>Declined</label>${dec.map(u=>`<div class="ur">${info(u)}<button data-ap="${u.id}">Approve as contributor</button></div>`).join('')}`:''}<div class="r"><span class="sp"></span><button data-x>Close</button></div></div>`;
   };
   usersDraw=draw;draw();
   o.addEventListener('pointerdown',e=>{if(e.target===o)closeModal()});
-  o.addEventListener('change',e=>{const s=e.target.closest('[data-rr]');if(!s)return;const u=state.users.find(x=>x.id===s.dataset.rr);if(!u)return;if(u.role==='admin'&&s.value!=='admin'&&admins()<2){s.value='admin';setStatus('There must be at least one admin.');return}u.role=s.value;saveUser(u);evalAccess();draw()});
-  o.addEventListener('click',e=>{
+  o.addEventListener('change',e=>{if(myRole!=='admin')return;const s=e.target.closest('[data-rr]');if(!s)return;const u=state.users.find(x=>x.id===s.dataset.rr);if(!u)return;if(u.role==='admin'&&s.value!=='admin'&&admins()<2){s.value='admin';setStatus('There must be at least one admin.');return}u.role=s.value;saveUser(u);evalAccess();draw()});
+  o.addEventListener('click',async e=>{
+    if(myRole!=='admin')return;
     const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+    if(d.resetApprove||d.resetDecline){b.disabled=true;try{await db.collection('passwordResets').doc(d.resetApprove||d.resetDecline).set({status:d.resetApprove?'approved':'declined'})}catch(error){fail(error);b.disabled=false}return}
+    if(d.deleteUser){if(b.dataset.armed!=='yes'){b.dataset.armed='yes';b.textContent='Confirm remove user';return}b.disabled=true;try{await db.collection('users').doc(d.deleteUser).delete()}catch(error){fail(error);b.disabled=false}return}
     if(b.hasAttribute('data-x')){closeModal();return}
     const id=d.ap||d.dc||d.rv;const u=state.users.find(x=>x.id===id);if(!u)return;
     if(d.ap){const sel=o.querySelector('[data-ar="'+id+'"]'),at=o.querySelector('[data-at="'+id+'"]');u.status='approved';u.role=sel?sel.value:'contributor';
@@ -1252,12 +1257,26 @@ function startApp(){
   connect();
 }
 async function doLogout(){try{await API('/api/auth',{action:'logout'})}catch(e){}location.reload()}
+function showPasswordReset(o){
+  let token=sessionStorage.getItem('planner-reset-token')||'',lastStatus='';
+  const back=()=>{sessionStorage.removeItem('planner-reset-token');showLogin()};
+  const display=status=>{
+    lastStatus=status;
+    o.innerHTML=`<div class="dlg"><h3>Reset password</h3>${status==='request'?'<label>Username</label><input id="reset-user" autocomplete="username"><button id="request-reset" class="pri">Request password reset</button>':status==='approved'?'<p>An Admin has approved your request. Enter your new password.</p><label>New password</label><input id="reset-password" type="password" autocomplete="new-password" minlength="8"><label>Confirm password</label><input id="reset-confirm" type="password" autocomplete="new-password"><button id="save-reset" class="pri">Set new password</button>':status==='pending'?'<p>If the account is eligible, a request has been sent to your Admin. Keep this page open in this browser. It will update when approved.</p>':'<p>This request is unavailable, declined or expired. Go back to request another reset.</p>'}<p class="hint" id="reset-message" role="status"></p><button id="reset-back">Back to login</button></div>`;
+    o.querySelector('#reset-back').onclick=back;
+    const request=o.querySelector('#request-reset');if(request)request.onclick=async()=>{request.disabled=true;try{const result=await API('/api/auth',{action:'reset-request',username:o.querySelector('#reset-user').value});token=result.token;sessionStorage.setItem('planner-reset-token',token);display('pending');setTimeout(check,5000)}catch(e){o.querySelector('#reset-message').textContent=e.message;request.disabled=false}};
+    const save=o.querySelector('#save-reset');if(save)save.onclick=async()=>{const password=o.querySelector('#reset-password').value;if(password!==o.querySelector('#reset-confirm').value){o.querySelector('#reset-message').textContent='Passwords do not match.';return}save.disabled=true;try{await API('/api/auth',{action:'reset-complete',token,password});sessionStorage.removeItem('planner-reset-token');token='';showLogin();document.querySelector('#lmsg').textContent='Password updated. Log in with your new password.'}catch(e){o.querySelector('#reset-message').textContent=e.message;save.disabled=false}};
+  };
+  const check=async()=>{if(!o.isConnected||!token||!o.querySelector('#reset-back'))return;try{const result=await API('/api/auth',{action:'reset-status',token});if(result.status!==lastStatus)display(result.status);if(result.status==='pending')setTimeout(check,5000)}catch(e){if(o.isConnected&&o.querySelector('#reset-message'))o.querySelector('#reset-message').textContent=e.message}};
+  display(token?'pending':'request');if(token)check();
+}
 function showLogin(){
   let o=document.getElementById('login');if(o)o.remove();
   o=document.createElement('div');o.id='login';o.className='ov-modal';o.style.cssText='z-index:95;background:var(--bg)';document.body.appendChild(o);
   let mode='in';
   const draw=()=>{
-    o.innerHTML=`<div class="dlg"><h3>Capacity planner</h3><div class="seg" id="lm" style="margin:10px 0"><button data-m="in" class="${mode==='in'?'on':''}">Log in</button><button data-m="up" class="${mode==='up'?'on':''}">Create account</button></div><label>Username</label><input id="lu" autocomplete="username" autocapitalize="none" spellcheck="false"><label>Password</label><input id="lp" type="password" autocomplete="${mode==='in'?'current-password':'new-password'}">${mode==='up'?'<label>Full name</label><input id="ln" autocomplete="name"><label>Job title</label><input id="lj"><p class="hint">New accounts must be approved by an admin before you can see the plan.</p>':''}<p class="hint" id="lmsg" role="alert"></p><div class="r"><span class="sp"></span><button class="pri" id="lgo">${mode==='in'?'Log in':'Create account'}</button></div></div>`;
+    o.innerHTML=`<div class="dlg"><h3>Capacity planner</h3><div class="seg" id="lm" style="margin:10px 0"><button data-m="in" class="${mode==='in'?'on':''}">Log in</button><button data-m="up" class="${mode==='up'?'on':''}">Create account</button></div><label>Username</label><input id="lu" autocomplete="username" autocapitalize="none" spellcheck="false"><label>Password</label><input id="lp" type="password" autocomplete="${mode==='in'?'current-password':'new-password'}">${mode==='up'?'<label>Full name</label><input id="ln" autocomplete="name"><label>Job title</label><input id="lj"><p class="hint">New accounts must be approved by an admin before you can see the plan.</p>':''}${mode==='in'?'<button type="button" id="forgot-password">Forgot password</button>':''}<p class="hint" id="lmsg" role="alert"></p><div class="r"><span class="sp"></span><button class="pri" id="lgo">${mode==='in'?'Log in':'Create account'}</button></div></div>`;
+    const forgot=o.querySelector('#forgot-password');if(forgot)forgot.onclick=()=>showPasswordReset(o);
     o.querySelector('#lm').onclick=e=>{const b=e.target.closest('button');if(b){mode=b.dataset.m;draw()}};
     const go=async()=>{
       const body={action:mode==='in'?'login':'signup',username:o.querySelector('#lu').value,password:o.querySelector('#lp').value};

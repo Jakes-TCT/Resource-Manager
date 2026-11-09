@@ -15,6 +15,36 @@ module.exports = async (req, res) => {
     }
     if (b.action === 'logout') { c.clearCookie(res); return res.json({ ok: true }); }
 
+    if (b.action === 'reset-request') {
+      const username = String(b.username || '').trim().toLowerCase();
+      const user = (await sql`select id from app_users where username=${username} and status='approved'`)[0];
+      const token = require('crypto').randomBytes(32).toString('hex'), digest = require('crypto').createHash('sha256').update(token).digest('hex'), now = Date.now();
+      if (user) {
+        const recent = await sql`select id from password_resets where user_id=${user.id} and created > ${now-15*60000}`;
+        if (recent.length < 3) {
+          await sql`insert into password_resets(id,user_id,token_hash,status,created,expires) values(${require('crypto').randomBytes(12).toString('hex')},${user.id},${digest},'pending',${now},${now+24*3600000})`;
+          await c.bump();
+        }
+      }
+      return res.json({ token, status: 'pending' });
+    }
+    if (b.action === 'reset-status' || b.action === 'reset-complete') {
+      if (!/^[a-f0-9]{64}$/.test(String(b.token || ''))) throw c.http(400, 'Invalid reset request');
+      const digest = require('crypto').createHash('sha256').update(b.token).digest('hex'), now = Date.now();
+      if (b.action === 'reset-status') {
+        const request = (await sql`select status from password_resets where token_hash=${digest} and expires > ${now}`)[0];
+        return res.json({ status: request ? request.status : 'unavailable' });
+      }
+      const password = String(b.password || '');
+      if (password.length < 8 || password.length > 200) throw c.http(400, 'Password must be 8 to 200 characters');
+      const encoded = await c.hash(password);
+      const updated = await sql`with consumed as (delete from password_resets r where token_hash=${digest} and status='approved' and expires > ${now} and exists(select 1 from app_users u where u.id=r.user_id and u.status='approved') returning user_id) update app_users set pass=${encoded}, fails=0, locked_until=0, auth_version=auth_version+1 where id in (select user_id from consumed) returning id`;
+      if (!updated.length) throw c.http(403, 'Reset has not been approved, has expired or was already used');
+      await sql`delete from password_resets where user_id=${updated[0].id}`;
+      await c.bump();
+      return res.json({ ok: true });
+    }
+
     const username = String(b.username || '').trim().toLowerCase();
     const password = String(b.password || '');
 
@@ -49,7 +79,7 @@ module.exports = async (req, res) => {
         u.role = 'admin'; u.status = 'approved';
         await c.bump();
       }
-      c.setCookie(res, u.id);
+      c.setCookie(res, u.id, Number(u.auth_version || 0));
       return res.json({ user: c.pub(u) });
     }
     throw c.http(400, 'Unknown action');

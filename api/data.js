@@ -12,6 +12,10 @@ async function snapshot(u, ok) {
       for (const r of await sql`select id, data from docs where coll='log' order by (data->>'at')::bigint desc limit 300`) out.log[r.id] = r.data;
     }
   }
+  if (ok && u.role === 'admin') {
+    out.passwordResets = {};
+    for (const r of await sql`select r.id, r.user_id, r.status, r.created, r.expires, u.username, u.name from password_resets r join app_users u on u.id=r.user_id where r.expires > ${Date.now()} and r.status='pending' order by r.created`) out.passwordResets[r.id] = { userId: r.user_id, username: r.username, name: r.name, status: r.status, created: Number(r.created), expires: Number(r.expires) };
+  }
   const rows = ok && u.role === 'admin'
     ? await sql`select id, username, name, job_title, status, role, created from app_users`
     : [u];
@@ -31,9 +35,14 @@ async function apply(u, ops) {
       stmts.push(sql`insert into docs(coll, id, data) values('log', ${id}, ${JSON.stringify(d)}::jsonb)`);
       continue;
     }
+    if (coll === 'passwordResets') {
+      if (u.role !== 'admin' || op.op !== 'set' || !['approved','declined'].includes(op.data?.status)) throw c.http(403, 'Only admins can approve password resets');
+      stmts.push(sql`update password_resets set status=${op.data.status}, expires=${Date.now()+15*60000} where id=${id} and status='pending' and expires > ${Date.now()}`);
+      continue;
+    }
     if (coll === 'users') {
-      if (u.role !== 'admin' || op.op !== 'set') throw c.http(403, 'Only admins can manage users');
-      userOps.push({ id, data: op.data || {} });
+      if (u.role !== 'admin' || !['set','delete'].includes(op.op)) throw c.http(403, 'Only admins can manage users');
+      userOps.push({ id, data: op.data || {}, kind: op.op });
       continue;
     }
     if (!c.COLLS.includes(coll)) throw c.http(400, 'Unknown collection');
@@ -60,7 +69,13 @@ async function apply(u, ops) {
   }
   if (userOps.length) {
     const admins = new Set((await sql`select id from app_users where role='admin' and status='approved'`).map((r) => r.id));
-    for (const { id, data } of userOps) {
+    for (const { id, data, kind } of userOps) {
+      if (kind === 'delete') {
+        if (id === u.id) throw c.http(400, 'You cannot remove your own account');
+        admins.delete(id);
+        stmts.push(sql`delete from app_users where id=${id}`);
+        continue;
+      }
       if (!(await sql`select 1 from app_users where id=${id}`).length) throw c.http(404, 'Unknown user');
       const st = ['approved', 'pending', 'declined'].includes(data.status) ? data.status : null;
       const rl = ROLES.includes(data.role) ? data.role : null;
