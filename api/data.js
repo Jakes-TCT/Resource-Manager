@@ -104,6 +104,15 @@ module.exports = async (req, res) => {
       if (!c.sameType(req)) throw c.http(415, 'JSON only');
       if (!ok) throw c.http(403, 'Your account has not been approved yet');
       if (u.role === 'viewer') throw c.http(403, 'View Only access cannot make changes');
+      if ((req.body || {}).action === 'clear-projects-clients') {
+        if (u.role !== 'admin') throw c.http(403, 'Only Admins can erase clients and projects');
+        if (req.body.confirmation !== 'ERASE CLIENTS AND PROJECTS') throw c.http(400, 'Confirmation is required');
+        await sql.transaction([
+          sql`delete from docs where coll in ('clients','projects','allocs')`,
+          sql`update meta set v = v + 1 where k='rev'`
+        ]);
+        return res.json({ ok: true });
+      }
       const ops = (req.body || {}).ops;
       if (!Array.isArray(ops) || !ops.length || ops.length > 50) throw c.http(400, 'Bad request');
       await apply(u, ops);

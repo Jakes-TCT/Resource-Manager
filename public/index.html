@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="resource-manager-build" content="2026.11.06-r4">
+<meta name="resource-manager-build" content="2026.11.09-r1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Capacity Planner</title>
 <link rel="icon" type="image/png" href="./rmicon.png?v=1">
@@ -192,7 +192,7 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
 </head>
 <body>
 <header>
-  <details id="settings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m10 2-.5 2.5-2 .8-2.1-1.4L2.9 6.4l1.4 2.1-.8 2L1 11v3l2.5.5.8 2-1.4 2.1 2.5 2.5 2.1-1.4 2 .8.5 2.5h3l.5-2.5 2-.8 2.1 1.4 2.5-2.5-1.4-2.1.8-2L23 14v-3l-2.5-.5-.8-2 1.4-2.1-2.5-2.5-2.1 1.4-2-.8L14 2z"/><circle cx="12" cy="12.5" r="3.5"/></svg></summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="lo" hidden onclick="doLogout()">Sign out</button><span id="build-version" class="hint" style="padding:5px">Build 2026.11.06-r4</span></nav></details>
+  <details id="settings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m10 2-.5 2.5-2 .8-2.1-1.4L2.9 6.4l1.4 2.1-.8 2L1 11v3l2.5.5.8 2-1.4 2.1 2.5 2.5 2.1-1.4 2 .8.5 2.5h3l.5-2.5 2-.8 2.1 1.4 2.5-2.5-1.4-2.1.8-2L23 14v-3l-2.5-.5-.8-2 1.4-2.1-2.5-2.5-2.1 1.4-2-.8L14 2z"/><circle cx="12" cy="12.5" r="3.5"/></svg></summary><nav aria-label="Settings"><button id="rep">Reports</button><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="imp" hidden>Import - Float</button><button id="usr" hidden>Users</button><button id="clear-projects" class="danger adm" hidden>Erase clients and projects</button><button id="lo" hidden onclick="doLogout()">Sign out</button><span id="build-version" class="hint" style="padding:5px">Build 2026.11.09-r1</span></nav></details>
   <h1 class="brand"><img class="brand-logo" src="/flux-logo.png" alt="Flux"></h1>
   <button id="pane" class="icon-button" aria-label="Hide projects" title="Hide projects" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><button id="today">Today</button><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label" class="hint">100%</span><button id="zoom-in" aria-label="Zoom in">+</button><button id="undo" disabled title="Undo last change" aria-label="Undo">&#8630;</button><button id="redo" disabled title="Redo last change" aria-label="Redo">&#8631;</button>
   <span class="sp"></span>
@@ -1143,7 +1143,7 @@ function evalAccess(){
   document.body.dataset.role=myRole||'';
   if(myRole==='viewer'){closeModal();closePop();document.getElementById('dpane')?.remove();cancelBookingDrag();stopSplitBooking();setDeleteBookingMode(false)}
   const pend=state.users.filter(u=>u.status==='pending').length+resetRequests.length,ub=document.getElementById('usr');
-  ub.hidden=myRole!=='admin';document.getElementById('act').hidden=myRole!=='admin';document.getElementById('imp').hidden=myRole!=='admin';ub.textContent='Users'+(pend?' ('+pend+')':'');
+  ub.hidden=myRole!=='admin';document.getElementById('clear-projects').hidden=myRole!=='admin';document.getElementById('act').hidden=myRole!=='admin';document.getElementById('imp').hidden=myRole!=='admin';ub.textContent='Users'+(pend?' ('+pend+')':'');
   setStatus((readOnly?'Shared · read only':'Shared · live')+(myRole?' · '+((me&&me.name)?me.name+' · ':'')+myRole:''));
   render();
 }
@@ -1188,6 +1188,14 @@ function openUsers(){
   });
 }
 document.getElementById('usr').onclick=openUsers;
+document.getElementById('clear-projects').onclick=()=>{
+  if(myRole!=='admin')return;
+  closeModal();closePop();
+  const o=document.createElement('div');o.className='ov-modal';o.innerHTML='<div class="dlg" role="dialog" aria-label="Erase clients and projects"><h3>Erase clients and projects</h3><p>This permanently deletes all clients, projects and their bookings, including leave bookings. Users, team resources, public holidays and account settings are kept.</p><p>You can import your Float files afterwards. This cannot be undone.</p><label>Type ERASE to continue</label><input id="erase-confirm" autocomplete="off"><p id="erase-message" role="status"></p><div class="r"><button id="erase-cancel">Cancel</button><button id="erase-run" class="danger" disabled>Erase clients and projects</button></div></div>';document.body.appendChild(o);
+  const confirm=o.querySelector('#erase-confirm'),run=o.querySelector('#erase-run'),cancel=o.querySelector('#erase-cancel'),message=o.querySelector('#erase-message');cancel.onclick=closeModal;confirm.oninput=()=>run.disabled=confirm.value!=='ERASE';confirm.focus();
+  run.onclick=async()=>{if(myRole!=='admin'||confirm.value!=='ERASE')return;run.disabled=true;cancel.disabled=true;confirm.disabled=true;message.textContent='Erasing clients, projects and bookings...';try{if(!db?.clearProjects)throw new Error('Connect to the shared board before clearing data');await db.clearProjects();document.getElementById('dpane')?.remove();pf='';filterQ='';document.getElementById('flt').value='';closeModal();render();setStatus('Clients, projects and bookings erased. You can now import from Float.')}catch(e){message.textContent=e.message;cancel.disabled=false;confirm.disabled=false;run.disabled=confirm.value!=='ERASE'}};
+};
+
 /* ---------- holidays ---------- */
 function openHoliday(iso,e){
   const d=parse(iso);if(d.getDay()===0||d.getDay()===6)return;
@@ -1234,7 +1242,7 @@ function makeDB(){
     catch(e){subs.forEach(s=>s.err&&s.err(e))}
   };
   const soon=()=>{clearTimeout(timer);timer=setTimeout(poll,500)};
-  const write=ops=>{if(myRole==='viewer')return Promise.reject(new Error('View Only access cannot make changes'));pendingWrites++;changeEpoch++;const result=writeQueue.catch(()=>{}).then(()=>API('/api/data',{ops}));writeQueue=result;return result.catch(e=>{rev=-1;throw e}).finally(()=>{pendingWrites--;changeEpoch++;if(!pendingWrites)soon()})};
+  const write=(ops,action)=>{if(myRole==='viewer')return Promise.reject(new Error('View Only access cannot make changes'));pendingWrites++;changeEpoch++;const result=writeQueue.catch(()=>{}).then(()=>API('/api/data',action?{action,confirmation:'ERASE CLIENTS AND PROJECTS'}:{ops}));writeQueue=result;return result.catch(e=>{rev=-1;throw e}).finally(()=>{pendingWrites--;changeEpoch++;if(!pendingWrites)soon()})};
   const coll=(name,o={})=>({
     doc:id=>({
       set:obj=>{if(myRole==='viewer')return Promise.reject(new Error('View Only access cannot make changes'));(store[name]=store[name]||{})[id]=obj;fire();return write([{op:'set',coll:name,id,data:obj}])},
@@ -1247,7 +1255,7 @@ function makeDB(){
   poll();
   setInterval(()=>{if(!document.hidden)poll()},5000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
-  return{collection:n=>coll(n),
+  return{clearProjects:async()=>{if(myRole!=='admin')throw new Error('Only Admins can erase clients and projects');await write(null,'clear-projects-clients');for(const kind of ['clients','projects','allocs']){store[kind]={};for(const key of Object.keys(shadow))if(key.startsWith(kind+'/'))delete shadow[key]}pendingEdit=null;undoStack.length=0;redoStack.length=0;fire();historyButtons()},collection:n=>coll(n),
     refresh:()=>{rev=-1;poll()},
     batch:async(ops,cb)=>{if(myRole==='viewer')throw new Error('View Only access cannot make changes');for(const op of ops)captureEdit(op.coll,op.id,op.op==='delete'?null:op.data);for(let i=0;i<ops.length;i+=25){const chunk=ops.slice(i,i+25);await write(chunk);for(const op of chunk){store[op.coll]??={};if(op.op==='delete')delete store[op.coll][op.id];else store[op.coll][op.id]=copyEdit(op.data)}fire();if(cb)cb(Math.min(ops.length,i+25),ops.length)}rev=-1;poll()}};
 }
