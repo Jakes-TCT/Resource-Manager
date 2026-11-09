@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="resource-manager-build" content="2026.11.09-r11">
+<meta name="resource-manager-build" content="2026.11.09-r13">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Flux</title>
 <link rel="icon" type="image/png" href="./rmicon.png?v=1">
@@ -183,7 +183,7 @@ aside .team-heading button{font-size:inherit;font-weight:inherit}
 .brand{margin:0;display:flex;align-items:center}.brand-logo{display:block;width:120px;height:38px;object-fit:contain;filter:brightness(0)}
 :root[data-theme="dark"] .brand-logo{filter:brightness(0) invert(1)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand-logo{filter:brightness(0) invert(1)}}
-.rainbow-editor{border:3px solid transparent!important;background:linear-gradient(var(--panel),var(--panel)) padding-box,conic-gradient(from var(--rainbow-angle,35deg),#4c83ff,#45d5ff,#64afff,#6366f1,#9c82ff,#df85ed,#69dfe0,#4c83ff) border-box!important;box-shadow:0 12px 35px rgba(0,0,0,.28),0 0 8px 2px rgba(112,151,255,.65),-8px -6px 26px 4px rgba(76,131,255,.65),8px -6px 26px 4px rgba(69,213,255,.60),8px 8px 28px 4px rgba(88,200,245,.65),-8px 8px 28px 4px rgba(149,129,255,.70)!important}
+.rainbow-editor{border:3px solid transparent!important;background:linear-gradient(var(--panel),var(--panel)) padding-box,conic-gradient(from var(--rainbow-angle,35deg),#4c83ff,#45d5ff,#64afff,#6366f1,#9c82ff,#df85ed,#69dfe0,#4c83ff) border-box!important;box-shadow:0 12px 35px rgba(0,0,0,.28)!important}
 body[data-role=viewer] .add,body[data-role=viewer] .ed,body[data-role=viewer] .rh,body[data-role=viewer] .rz,body[data-role=viewer] .rv,body[data-role=viewer] [data-eclient]:not(.client-name),body[data-role=viewer] #imp,body[data-role=viewer] #usr{display:none!important}body[data-role=viewer] .al,body[data-role=viewer] .chip,body[data-role=viewer] .who,body[data-role=viewer] .client-name{cursor:default!important}
 #settings .settings-group{position:relative}#settings [data-settings-menu]{display:flex;align-items:center;justify-content:space-between;gap:10px}#settings [data-settings-menu][aria-expanded="true"]{border-color:var(--accent)}#settings .settings-submenu{position:absolute;left:calc(100% + 7px);top:0;min-width:210px;padding:6px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;box-shadow:0 8px 24px #0003;z-index:81;display:flex;flex-direction:column;gap:4px}#settings .settings-submenu[hidden]{display:none}#settings .settings-submenu.flip{left:auto;right:calc(100% + 7px)}#settings .settings-submenu.below{left:0;top:100%}
 aside .lifecycle-section:is([data-section="inactive"],[data-section="archived"],[data-section="team-inactive"],[data-section="team-archived"]){border:1px solid var(--line2);border-radius:8px;padding:8px;margin:10px 0;font-size:12px;background:color-mix(in srgb,var(--panel) 70%,var(--bg))}aside .lifecycle-section:is([data-section="inactive"],[data-section="archived"],[data-section="team-inactive"],[data-section="team-archived"])>summary{font-size:12px;margin-bottom:0}aside .lifecycle-section:is([data-section="inactive"],[data-section="archived"],[data-section="team-inactive"],[data-section="team-archived"])[open]>summary{margin-bottom:8px}
@@ -192,8 +192,11 @@ aside .projects-heading,aside .team-heading{font-size:15px}.projects-heading .se
 aside .team-heading{border-top:5px solid var(--mute);padding-top:16px}
 @property --rainbow-angle{syntax:"<angle>";initial-value:35deg;inherits:false}
 @keyframes rainbow-flow{from{--rainbow-angle:35deg}to{--rainbow-angle:395deg}}
-.rainbow-editor{animation:rainbow-flow 3s linear infinite}
-@media(prefers-reduced-motion:reduce){.rainbow-editor{animation:none}}
+.rainbow-editor,.rainbow-halo{animation:rainbow-flow 3s linear infinite}
+@media(prefers-reduced-motion:reduce){.rainbow-editor,.rainbow-halo{animation:none}}
+.rainbow-editor.dlg{position:relative;z-index:1}
+.rainbow-halo{position:fixed;pointer-events:none;border-radius:12px;background:conic-gradient(from var(--rainbow-angle,35deg),#4c83ff,#45d5ff,#64afff,#6366f1,#9c82ff,#df85ed,#69dfe0,#4c83ff);filter:blur(18px);opacity:.95}
+.quick-edit-handle{position:sticky;top:-12px;z-index:2;display:flex;align-items:center;gap:8px;margin:-12px -12px 10px;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--line2);cursor:grab;touch-action:none;user-select:none}.quick-edit-handle.moving{cursor:grabbing}.pop.rainbow-editor{max-width:calc(100vw - 16px)}
 </style>
 <script>
 try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}
@@ -201,7 +204,7 @@ try{const t=JSON.parse(localStorage.getItem('planner-theme'));if(t==='dark'||t==
 </head>
 <body>
 <header>
-  <details id="settings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m10 2-.5 2.5-2 .8-2.1-1.4L2.9 6.4l1.4 2.1-.8 2L1 11v3l2.5.5.8 2-1.4 2.1 2.5 2.5 2.1-1.4 2 .8.5 2.5h3l.5-2.5 2-.8 2.1 1.4 2.5-2.5-1.4-2.1.8-2L23 14v-3l-2.5-.5-.8-2 1.4-2.1-2.5-2.5-2.1 1.4-2-.8L14 2z"/><circle cx="12" cy="12.5" r="3.5"/></svg></summary><nav aria-label="Settings"><div class="settings-group"><button type="button" id="export-menu" data-settings-menu="export-options" aria-expanded="false" aria-controls="export-options">Export <span aria-hidden="true">&#9656;</span></button><div class="settings-submenu" id="export-options" hidden><button id="rep">Capacity report - CSV</button><button id="export-data" class="adm">Data - CSV</button></div></div><div class="settings-group adm"><button type="button" id="import-menu" data-settings-menu="import-options" aria-expanded="false" aria-controls="import-options">Import <span aria-hidden="true">&#9656;</span></button><div class="settings-submenu" id="import-options" hidden><button id="imp" hidden>Float import</button><button id="import-data" class="adm">Flux CSV import</button></div></div><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="usr" hidden>Users</button><div class="settings-group adm"><button type="button" id="admin-menu" data-settings-menu="admin-options" aria-expanded="false" aria-controls="admin-options">Admin Settings <span aria-hidden="true">&#9656;</span></button><div class="settings-submenu" id="admin-options" hidden><button id="act" hidden>Activity Logs</button><button id="clear-projects" class="danger adm" hidden>Erase clients and projects</button></div></div><button id="lo" hidden onclick="doLogout()">Sign out</button><span id="build-version" class="hint" style="padding:5px">Build 2026.11.09-r11</span></nav></details>
+  <details id="settings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m10 2-.5 2.5-2 .8-2.1-1.4L2.9 6.4l1.4 2.1-.8 2L1 11v3l2.5.5.8 2-1.4 2.1 2.5 2.5 2.1-1.4 2 .8.5 2.5h3l.5-2.5 2-.8 2.1 1.4 2.5-2.5-1.4-2.1.8-2L23 14v-3l-2.5-.5-.8-2 1.4-2.1-2.5-2.5-2.1 1.4-2-.8L14 2z"/><circle cx="12" cy="12.5" r="3.5"/></svg></summary><nav aria-label="Settings"><div class="settings-group"><button type="button" id="export-menu" data-settings-menu="export-options" aria-expanded="false" aria-controls="export-options">Export <span aria-hidden="true">&#9656;</span></button><div class="settings-submenu" id="export-options" hidden><button id="rep">Capacity report - CSV</button><button id="export-data" class="adm">Data - CSV</button></div></div><div class="settings-group adm"><button type="button" id="import-menu" data-settings-menu="import-options" aria-expanded="false" aria-controls="import-options">Import <span aria-hidden="true">&#9656;</span></button><div class="settings-submenu" id="import-options" hidden><button id="imp" hidden>Float import</button><button id="import-data" class="adm">Flux CSV import</button></div></div><button id="rrh" title="Reset all row heights">Reset row sizes</button><button id="usr" hidden>Users</button><div class="settings-group adm"><button type="button" id="admin-menu" data-settings-menu="admin-options" aria-expanded="false" aria-controls="admin-options">Admin Settings <span aria-hidden="true">&#9656;</span></button><div class="settings-submenu" id="admin-options" hidden><button id="act" hidden>Activity Logs</button><button id="clear-projects" class="danger adm" hidden>Erase clients and projects</button></div></div><button id="lo" hidden onclick="doLogout()">Sign out</button><span id="build-version" class="hint" style="padding:5px">Build 2026.11.09-r13</span></nav></details>
   <h1 class="brand"><img class="brand-logo" src="/flux-logo.png" alt="Flux"></h1>
   <button id="pane" class="icon-button" aria-label="Hide projects" title="Hide projects" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><button id="today">Today</button><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label" class="hint">100%</span><button id="zoom-in" aria-label="Zoom in">+</button><button id="undo" disabled title="Undo last change" aria-label="Undo">&#8630;</button><button id="redo" disabled title="Redo last change" aria-label="Redo">&#8631;</button>
   <span class="sp"></span>
@@ -490,7 +493,15 @@ function cancelBookingDrag(){if(!drag)return;drag=null;if(ghost){ghost.remove();
 document.addEventListener('pointercancel',cancelBookingDrag);window.addEventListener('blur',cancelBookingDrag);
 
 /* ---------- editor popover ---------- */
-function closePop(){document.querySelector('.pop')?.remove()}
+function closePop(){const p=document.querySelector('.pop');p?._dragCleanup?.();p?.remove()}
+function makeQuickEditDraggable(p){
+  const handle=p.querySelector('.quick-edit-handle');let moving=null;
+  const fit=()=>{if(!p.isConnected)return;const r=p.getBoundingClientRect(),top=Math.max(8,Math.min(r.top,innerHeight-80));p.style.left=Math.max(8,Math.min(r.left,innerWidth-r.width-8))+'px';p.style.top=top+'px';p.style.maxHeight=Math.max(64,innerHeight-top-8)+'px'};
+  handle.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();e.stopPropagation();const r=p.getBoundingClientRect();moving={id:e.pointerId,x:e.clientX-r.left,y:e.clientY-r.top};handle.setPointerCapture(e.pointerId);handle.classList.add('moving')});
+  handle.addEventListener('pointermove',e=>{if(!moving||e.pointerId!==moving.id)return;e.preventDefault();p.style.left=Math.max(8,Math.min(e.clientX-moving.x,innerWidth-p.offsetWidth-8))+'px';p.style.top=Math.max(8,Math.min(e.clientY-moving.y,innerHeight-80))+'px';fit()});
+  const stop=()=>{if(moving&&handle.hasPointerCapture(moving.id))handle.releasePointerCapture(moving.id);moving=null;handle.classList.remove('moving')};
+  handle.addEventListener('pointerup',stop);handle.addEventListener('pointercancel',stop);handle.addEventListener('lostpointercapture',()=>{moving=null;handle.classList.remove('moving')});window.addEventListener('resize',fit);p._dragCleanup=()=>{stop();window.removeEventListener('resize',fit)};fit();
+}
 function openPop(id,e){if(myRole==='viewer')return;
   closePop();
   const a=state.allocs.find(x=>x.id===id);if(!a)return;
@@ -505,9 +516,10 @@ function openPop(id,e){if(myRole==='viewer')return;
   const assignHtml=support?`<label>Assigned to</label><div class="as" id="as"><span class="ch2">${esc(state.people.find(q=>q.id===a.person)?.name||'Unknown')}</span></div>`:linked?`<label for="pa">Assigned to</label><div class="as" id="as">${team.filter((b,i)=>team.findIndex(c=>c.person===b.person)===i).map(b=>{const q=state.people.find(x=>x.id===b.person);return `<span class="ch2">${esc(q?q.name:'Unknown')}<b data-rm2="${b.id}" role="button" aria-label="Remove from project">\u00d7</b></span>`}).join('')}<input id="pa" placeholder="${team.length?'Add people':'Add people to this project'}" autocomplete="off"></div><div id="sg" class="sg" hidden></div>`:'';
   const opt=x=>`<option value="${x.id}" ${x.id===a.proj?'selected':''}>${esc(x.name)}</option>`;
   const optg=sortedClients().map(c=>`<optgroup label="${esc(c.name)}">${state.projects.filter(x=>x.clientId===c.id).map(opt).join('')}</optgroup>`).join('')+state.projects.filter(x=>!client(x.clientId)).map(opt).join('');
-  p.innerHTML=`<div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><div class="allocation-hours"><div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"></div><div><label for="allocation-total">Total hours</label><output id="allocation-total" aria-live="polite" aria-atomic="true"></output></div></div><label for="pp">Project</label><select id="pp">${optg}</select><div class="two"><div><label for="booking-start">Start date</label><input type="date" id="booking-start" value="${eff(a).start||''}"></div><div><label for="booking-end">End date</label><input type="date" id="booking-end" value="${eff(a).end||''}"></div></div><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${ownHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
+  p.innerHTML=`<div class="quick-edit-handle" title="Drag to move this window"><span aria-hidden="true">&#10303;</span><b>Quick edit</b></div><div class="seg" id="st"><button data-v="confirmed" class="${tent?'':'on'}">Confirmed</button><button data-v="tentative" class="${tent?'on':''}">Tentative</button></div><div class="allocation-hours"><div><label for="ph">Hours per day</label><input id="ph" type="number" min="0.5" max="24" step="0.5" value="${a.hrs}"></div><div><label for="allocation-total">Total hours</label><output id="allocation-total" aria-live="polite" aria-atomic="true"></output></div></div><label for="pp">Project</label><select id="pp">${optg}</select><div class="two"><div><label for="booking-start">Start date</label><input type="date" id="booking-start" value="${eff(a).start||''}"></div><div><label for="booking-end">End date</label><input type="date" id="booking-end" value="${eff(a).end||''}"></div></div><label for="pk">Comment</label><textarea id="pk" rows="3" placeholder="Add a note for the team">${esc(a.comment||'')}</textarea>${assignHtml}${ownHtml}${histHtml}<div class="r"><button id="pd" class="danger">Delete</button><span class="sp"></span><button id="pc">Done</button></div>`;
   document.body.appendChild(p);
-  p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-310))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-520))+'px';
+  p.style.left=Math.max(8,Math.min(e.clientX,innerWidth-p.offsetWidth-8))+'px';p.style.top=Math.max(8,Math.min(e.clientY+10,innerHeight-p.offsetHeight-8))+'px';
+  makeQuickEditDraggable(p);
   if(!atLeast('manager'))p.classList.add('lim');
   const updateAllocationTotal=()=>{const hours=p.querySelector('#ph').value,start=p.querySelector('#booking-start').value,end=p.querySelector('#booking-end').value;const output=p.querySelector('#allocation-total');if(!hours||!Number.isFinite(Number(hours))||Number(hours)<.5||Number(hours)>24||!start||!end||end<start){output.textContent='–';return}const total=bookingTotalHours({...a,proj:p.querySelector('#pp').value,hrs:Number(hours),start,end,own:true});output.textContent=total.toLocaleString('en-GB',{maximumFractionDigits:2})+'h'};
   p.addEventListener('input',e=>{if(['ph','booking-start','booking-end','pp'].includes(e.target.id))updateAllocationTotal()});p.addEventListener('change',e=>{if(['ph','booking-start','booking-end','pp'].includes(e.target.id))updateAllocationTotal()});updateAllocationTotal();
@@ -1447,6 +1459,23 @@ document.body.classList.toggle('zoomed-out',DW<40);document.getElementById('zoom
 let lastFlagWeek='';document.getElementById('scroller').addEventListener('scroll',()=>{const week=visibleWeek();if(week!==lastFlagWeek&&!drag){lastFlagWeek=week;render()}});
 
 render();goToday();boot();
+</script>
+<script>
+(()=>{
+  const halos=new Map();let frame=0;
+  const schedule=()=>{if(!frame)frame=requestAnimationFrame(sync)};
+  const resize=new ResizeObserver(schedule);
+  function sync(){frame=0;
+    for(const [editor,halo]of halos)if(!editor.isConnected){resize.unobserve(editor);halo.remove();halos.delete(editor)}
+    document.querySelectorAll('.rainbow-editor').forEach(editor=>{
+      let halo=halos.get(editor);if(!halo){halo=document.createElement('div');halo.className='rainbow-halo';halo.setAttribute('aria-hidden','true');editor.before(halo);halos.set(editor,halo);resize.observe(editor)}
+      const rect=editor.getBoundingClientRect(),style=getComputedStyle(editor);halo.style.left=rect.left+'px';halo.style.top=rect.top+'px';halo.style.width=rect.width+'px';halo.style.height=rect.height+'px';halo.style.borderRadius=style.borderRadius;halo.style.zIndex=style.zIndex==='auto'?'0':String(Number(style.zIndex)-1);halo.style.display=rect.width&&rect.height?'block':'none';
+      const source=editor.getAnimations().find(a=>a.animationName==='rainbow-flow'),glow=halo.getAnimations().find(a=>a.animationName==='rainbow-flow');if(source&&glow&&source.startTime!=null)glow.startTime=source.startTime;
+    });
+  }
+  new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});
+  window.addEventListener('resize',schedule);document.addEventListener('scroll',schedule,true);document.addEventListener('pointermove',e=>{if(e.buttons&&halos.size)schedule()});window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',schedule);schedule();
+})();
 </script>
 </body>
 </html>
